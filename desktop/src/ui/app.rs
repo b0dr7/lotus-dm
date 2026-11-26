@@ -3,7 +3,9 @@ use eframe::egui::{
     Vec2,
 };
 
+use crate::core::queue::{self, DownloadJob};
 use crate::core::settings::{self, Settings};
+use crate::ui::queue_view::{self, AddDialog};
 use crate::ui::theme::{self, Palette};
 
 const NAV_WIDTH: f32 = 210.0;
@@ -13,6 +15,8 @@ const PILL_HEIGHT: f32 = 34.0;
 pub struct LotusApp {
     settings: Settings,
     nav: Nav,
+    queue: Vec<DownloadJob>,
+    add_dialog: Option<AddDialog>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -30,6 +34,8 @@ impl LotusApp {
         Self {
             settings,
             nav: Nav::Home,
+            queue: queue::load(),
+            add_dialog: None,
         }
     }
 }
@@ -75,19 +81,33 @@ impl eframe::App for LotusApp {
                 });
             });
 
-        CentralPanel::default().show(ctx, |ui| {
-            let (title, placeholder) = match self.nav {
-                Nav::Home => ("Home", "Nothing here yet. New downloads will show up here."),
-                Nav::Queue => ("Queue", "Your download queue is empty."),
-                Nav::Settings => ("Settings", "Settings arrive in a later phase."),
-            };
-
-            ui.add_space(8.0);
-            ui.heading(title);
-            ui.add_space(2.0);
-            ui.label(egui::RichText::new(placeholder).color(p.muted));
+        let nav = self.nav;
+        CentralPanel::default().show(ctx, |ui| match nav {
+            Nav::Queue => queue_view::queue_panel(ui, &mut self.queue, &mut self.add_dialog, &p),
+            Nav::Home => placeholder(
+                ui,
+                "Home",
+                "Nothing here yet. New downloads will show up here.",
+                &p,
+            ),
+            Nav::Settings => placeholder(ui, "Settings", "Settings arrive in a later phase.", &p),
         });
+
+        queue_view::add_dialog_window(
+            ctx,
+            &mut self.queue,
+            &mut self.add_dialog,
+            &self.settings.default_folder,
+            &p,
+        );
     }
+}
+
+fn placeholder(ui: &mut egui::Ui, title: &str, text: &str, p: &Palette) {
+    ui.add_space(8.0);
+    ui.heading(title);
+    ui.add_space(2.0);
+    ui.label(egui::RichText::new(text).color(p.muted));
 }
 
 fn nav_pill(ui: &mut egui::Ui, label: &str, selected: bool, p: &Palette) -> bool {
