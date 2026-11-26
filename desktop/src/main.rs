@@ -1,4 +1,5 @@
 mod core;
+mod engine;
 mod ui;
 
 use eframe::egui;

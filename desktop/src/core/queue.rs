@@ -37,6 +37,12 @@ pub struct DownloadJob {
     pub received_bytes: u64,
     pub total_bytes: u64,
     pub error: Option<String>,
+    #[serde(default)]
+    pub no_resume: bool,
+    #[serde(default)]
+    pub speed_limit_kbps: u64,
+    #[serde(skip)]
+    pub speed_bps: u64,
 }
 
 impl DownloadJob {
@@ -50,6 +56,9 @@ impl DownloadJob {
             received_bytes: 0,
             total_bytes: 0,
             error: None,
+            no_resume: false,
+            speed_limit_kbps: 0,
+            speed_bps: 0,
         }
     }
 }
