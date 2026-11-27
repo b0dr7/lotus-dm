@@ -9,3 +9,6 @@ pub mod row_view;
 pub mod settings_view;
 pub mod sidebar;
 pub mod theme;
+pub mod tray;
+#[cfg(windows)]
+pub mod tray_win;

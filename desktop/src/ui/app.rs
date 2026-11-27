@@ -18,6 +18,7 @@ use crate::ui::queue_view::{self, Filter};
 use crate::ui::settings_view;
 use crate::ui::sidebar;
 use crate::ui::theme::{self, Palette, ThemeMode};
+use crate::ui::tray::{self, Tray, TrayAction};
 
 const NAV_WIDTH: f32 = 214.0;
 
@@ -38,6 +39,9 @@ pub struct LotusApp {
     bridge_rx: Receiver<bridge::AddRequest>,
     bridge_port: Option<u16>,
     light_theme: bool,
+    tray: Option<Tray>,
+    quitting: bool,
+    hidden: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -76,6 +80,8 @@ impl LotusApp {
         } else {
             None
         };
+        let tray = Tray::new(&cc.egui_ctx);
+        let hidden = settings.start_hidden;
         Self {
             settings,
             nav: Nav::Home,
@@ -93,6 +99,9 @@ impl LotusApp {
             bridge_rx,
             bridge_port,
             light_theme,
+            tray,
+            quitting: false,
+            hidden,
         }
     }
 
@@ -165,7 +174,93 @@ impl LotusApp {
         }
     }
 
+    /// Tray menu clicks: they arrive once per frame from `ui::tray`.
+    fn handle_tray(&mut self, action: TrayAction, ctx: &egui::Context) {
+        match action {
+            TrayAction::Open => {
+                self.hidden = false;
+                sys::set_main_window_visible(true);
+                ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
+                ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+            }
+            TrayAction::PauseAll => {
+                for job in self.queue.iter() {
+                    if job.status == JobStatus::Running {
+                        if let Some(control) = self.controls.get(&job.id) {
+                            control.request_pause();
+                        }
+                    }
+                }
+            }
+            TrayAction::ResumeAll => {
+                for index in 0..self.queue.len() {
+                    let id = self.queue[index].id.clone();
+                    match self.queue[index].status {
+                        JobStatus::Paused => {
+                            if let Some(control) = self.controls.get(&id) {
+                                control.request_resume();
+                            } else {
+                                let pending = self.queue[index].clone();
+                                lifecycle::spawn_job(&pending, &mut self.controls, &self.event_tx);
+                            }
+                        }
+                        JobStatus::Queued => {
+                            let pending = self.queue[index].clone();
+                            lifecycle::spawn_job(&pending, &mut self.controls, &self.event_tx);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            TrayAction::Speed(kbps) => {
+                self.settings.global_speed_limit_kbps = kbps;
+                self.settings.traffic_mode = settings::TrafficMode::Custom;
+                engine::set_global_limit_kbps(kbps);
+                if let Err(err) = settings::save(&self.settings) {
+                    eprintln!("lotusdm: settings save failed: {err}");
+                }
+            }
+            TrayAction::Quit => {
+                self.quitting = true;
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            }
+        }
+    }
+
+    /// One notification per terminal state, and none for a failure that is
+    /// about to be retried automatically.
+    fn notify_finished(&self, id: &str, finished_ok: bool, message: &str) {
+        if !self.settings.notifications {
+            return;
+        }
+        let name = self
+            .queue
+            .iter()
+            .find(|job| job.id == id)
+            .map(|job| job.filename.clone())
+            .unwrap_or_default();
+        let name = if name.is_empty() {
+            "Download".to_string()
+        } else {
+            name
+        };
+        if finished_ok {
+            tray::notify("Download finished", &format!("{name} is ready."), false);
+        } else if !self.retry.will_retry(id) {
+            tray::notify("Download failed", &format!("{name} - {message}"), true);
+        }
+    }
+
     fn apply_state(&mut self, id: &str, state: EngineState) {
+        let finished = match &state {
+            EngineState::Done => Some(true),
+            EngineState::Failed(_) => Some(false),
+            _ => None,
+        };
+        let failure = match &state {
+            EngineState::Failed(message) => message.clone(),
+            _ => String::new(),
+        };
         match &state {
             EngineState::Failed(_) => self.retry.on_failure(id),
             EngineState::Done => self.retry.forget(id),
@@ -216,6 +311,9 @@ impl LotusApp {
             if let Err(err) = queue::save(&self.queue) {
                 eprintln!("lotusdm: queue save failed: {err}");
             }
+        }
+        if let Some(finished_ok) = finished {
+            self.notify_finished(id, finished_ok, &failure);
         }
     }
 
@@ -309,8 +407,28 @@ impl LotusApp {
 
 impl eframe::App for LotusApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        tray::set_speed_hint(self.settings.global_speed_limit_kbps);
+        for action in tray::poll() {
+            self.handle_tray(action, ctx);
+        }
+
         self.drain_bridge();
         self.drain_events();
+
+        // Close to tray: the window disappears, downloads keep going.
+        if ctx.input(|input| input.viewport().close_requested())
+            && self.settings.close_to_tray
+            && !self.quitting
+        {
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            sys::set_main_window_visible(false);
+            self.hidden = true;
+        }
+        if self.hidden {
+            // A hidden window is still ticked so progress and finish
+            // notifications keep flowing.
+            ctx.request_repaint_after(std::time::Duration::from_millis(500));
+        }
 
         // Auto-shutdown: once every job is finished (done or failed) and the
         // setting is on, close the window.
@@ -320,6 +438,7 @@ impl eframe::App for LotusApp {
                 .iter()
                 .all(|job| matches!(job.status, JobStatus::Done | JobStatus::Failed));
             if all_done {
+                self.quitting = true;
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
             }
         }

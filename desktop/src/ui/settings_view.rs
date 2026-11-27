@@ -148,6 +148,29 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
     );
     ui.add_space(12.0);
 
+    ui.label(RichText::new("Tray and notifications").color(p.text));
+    ui.label(
+        RichText::new(
+            "Downloads keep running with the window hidden. The tray menu has Open, Pause all, \
+             Resume all, speed presets and Quit.",
+        )
+        .color(p.muted),
+    );
+    ui.add_space(4.0);
+    let mut tray_changed = ui
+        .checkbox(&mut cfg.close_to_tray, "Close button hides to tray")
+        .changed();
+    tray_changed |= ui
+        .checkbox(&mut cfg.start_hidden, "Start hidden in the tray")
+        .changed();
+    tray_changed |= ui
+        .checkbox(&mut cfg.notifications, "Notify when a download finishes or fails")
+        .changed();
+    if tray_changed {
+        persist(cfg);
+    }
+    ui.add_space(12.0);
+
     ui.label(RichText::new("Clipboard watcher").color(p.text));
     ui.label(
         RichText::new(

@@ -73,10 +73,13 @@ fn main() -> eframe::Result {
         width: 64,
         height: 64,
     };
+    // "Start hidden in the tray" means no window at launch, only the icon.
+    let start_hidden = crate::core::settings::load().start_hidden;
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("Lotus Download Manager")
             .with_icon(std::sync::Arc::new(icon))
+            .with_visible(!start_hidden)
             .with_inner_size([1040.0, 680.0])
             .with_min_inner_size([760.0, 520.0]),
         ..Default::default()
