@@ -62,5 +62,12 @@ supplies the unsigned archive:
   `about:debugging` temporary loading.
 - Keep the `browser_specific_settings.gecko.id` unchanged between versions, or
   AMO treats the update as a different add-on.
+- `browser_specific_settings.gecko.data_collection_permissions` must stay in
+  the manifest. It is `{"required": ["none"]}`, which is accurate: the extension
+  talks to 127.0.0.1 and sends nothing to any server. Only change it if that
+  ever stops being true.
+- Icon sizes in `icons` must match the real pixel size of each file. The build
+  takes them straight out of `desktop/assets/lotus.ico`, which has no 96px
+  frame, so there is no 96 entry - do not add one pointing at the 128 file.
 - The Chromium build is not involved here; it is distributed as a zip the user
   loads unpacked (see `extensions/index.html` on the site).
