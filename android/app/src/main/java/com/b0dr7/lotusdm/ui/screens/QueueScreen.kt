@@ -23,8 +23,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -53,6 +56,21 @@ import com.b0dr7.lotusdm.engine.JobState
 import com.b0dr7.lotusdm.service.DownloadForegroundService
 import com.b0dr7.lotusdm.ui.theme.LocalLotusColors
 
+private enum class Filter(val label: String) {
+    ALL("All"),
+    ACTIVE("Active"),
+    DONE("Done"),
+    FAILED("Failed"),
+}
+
+private val LIMIT_PRESETS = longArrayOf(
+    0L,
+    256L * 1024L,
+    512L * 1024L,
+    1024L * 1024L,
+    2048L * 1024L,
+)
+
 @Composable
 fun QueueScreen() {
     val colors = LocalLotusColors.current
@@ -62,6 +80,9 @@ fun QueueScreen() {
     var jobs by remember { mutableStateOf(engine.snapshot()) }
     var link by remember { mutableStateOf("") }
     var message by remember { mutableStateOf<String?>(null) }
+    var filter by remember { mutableStateOf(Filter.ALL) }
+    var showBatch by remember { mutableStateOf(false) }
+    var batchText by remember { mutableStateOf("") }
 
     DisposableEffect(engine) {
         engine.observe { updated -> jobs = updated }
@@ -102,17 +123,55 @@ fun QueueScreen() {
         }
     }
 
+    val visible = jobs.filter { job ->
+        when (filter) {
+            Filter.ALL -> true
+            Filter.ACTIVE -> job.state == JobState.RUNNING ||
+                job.state == JobState.QUEUED ||
+                job.state == JobState.PAUSED
+            Filter.DONE -> job.state == JobState.COMPLETED
+            Filter.FAILED -> job.state == JobState.FAILED
+        }
+    }
+
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
     ) {
-        Spacer(Modifier.height(24.dp))
-        Text(
-            text = "Queue",
-            color = colors.text,
-            fontSize = 26.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(20.dp))
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "Queue",
+                color = colors.text,
+                fontSize = 26.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = { showBatch = true }) { Text("Batch") }
+            if (jobs.any { it.state == JobState.COMPLETED }) {
+                TextButton(onClick = { engine.clearCompleted() }) { Text("Clear done") }
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Filter.entries.forEach { candidate ->
+                FilterChip(
+                    selected = filter == candidate,
+                    onClick = { filter = candidate },
+                    label = { Text(candidate.label, fontSize = 12.sp) },
+                    shape = RoundedCornerShape(999.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = colors.accent.copy(alpha = 0.16f),
+                        selectedLabelColor = colors.accent,
+                        labelColor = colors.muted,
+                    ),
+                )
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
@@ -155,19 +214,20 @@ fun QueueScreen() {
 
         Spacer(Modifier.height(16.dp))
 
-        if (jobs.isEmpty()) {
+        if (visible.isEmpty()) {
             EmptyQueue()
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                items(jobs, key = { it.id }) { job ->
+                items(visible, key = { it.id }) { job ->
                     JobRow(
                         job = job,
                         onPause = { engine.pause(job.id) },
                         onResume = {
-                            engine.resume(job.id)
+                            if (job.state == JobState.FAILED) engine.retry(job.id)
+                            else engine.resume(job.id)
                             DownloadForegroundService.start(context)
                         },
                         onCancel = { engine.cancel(job.id) },
@@ -176,11 +236,48 @@ fun QueueScreen() {
                             val removed = engine.delete(job.id)
                             if (!removed) message = "Removed the row, but the file was already gone."
                         },
+                        onCycleLimit = { engine.setLimit(job.id, nextLimit(job.limit)) },
                     )
                 }
                 item { Spacer(Modifier.height(16.dp)) }
             }
         }
+    }
+
+    if (showBatch) {
+        AlertDialog(
+            onDismissRequest = { showBatch = false },
+            title = { Text("Paste links") },
+            text = {
+                OutlinedTextField(
+                    value = batchText,
+                    onValueChange = { batchText = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 5,
+                    placeholder = { Text("One link per line", fontSize = 13.sp) },
+                    shape = RoundedCornerShape(12.dp),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val lines = batchText.split('\n')
+                        .map { it.trim() }
+                        .filter { it.startsWith("http://") || it.startsWith("https://") }
+                    lines.forEach { engine.add(it) }
+                    if (lines.isNotEmpty()) DownloadForegroundService.start(context)
+                    message = if (lines.isEmpty()) {
+                        "No links found in that text."
+                    } else {
+                        "Added ${lines.size} download${if (lines.size == 1) "" else "s"}."
+                    }
+                    batchText = ""
+                    showBatch = false
+                }) { Text("Add all") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBatch = false }) { Text("Cancel") }
+            },
+        )
     }
 }
 
@@ -193,7 +290,7 @@ private fun EmptyQueue() {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = "Nothing queued",
+                text = "Nothing here",
                 color = colors.text,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -217,6 +314,7 @@ private fun JobRow(
     onCancel: () -> Unit,
     onOpen: () -> Unit,
     onDelete: () -> Unit,
+    onCycleLimit: () -> Unit,
 ) {
     val colors = LocalLotusColors.current
 
@@ -269,9 +367,8 @@ private fun JobRow(
             ) {
                 when (job.state) {
                     JobState.RUNNING -> TextButton(onClick = onPause) { Text("Pause") }
-                    JobState.PAUSED, JobState.FAILED -> TextButton(onClick = onResume) {
-                        Text(if (job.state == JobState.FAILED) "Retry" else "Resume")
-                    }
+                    JobState.PAUSED -> TextButton(onClick = onResume) { Text("Resume") }
+                    JobState.FAILED -> TextButton(onClick = onResume) { Text("Retry") }
                     JobState.QUEUED -> TextButton(onClick = onResume) { Text("Start") }
                     JobState.COMPLETED -> {
                         TextButton(onClick = onOpen, enabled = job.uri != null) { Text("Open") }
@@ -281,17 +378,26 @@ private fun JobRow(
 
                 if (job.state != JobState.COMPLETED) {
                     TextButton(onClick = onCancel) { Text("Cancel") }
+                    TextButton(onClick = onCycleLimit) { Text(limitLabel(job.limit)) }
                 }
             }
         }
     }
 }
 
+private fun nextLimit(current: Long): Long {
+    val index = LIMIT_PRESETS.indexOf(current)
+    return LIMIT_PRESETS[(index + 1) % LIMIT_PRESETS.size]
+}
+
+private fun limitLabel(limit: Long): String =
+    if (limit <= 0L) "No limit" else "${limit / 1024} KB/s"
+
 private fun metaLine(job: DownloadJob): String {
     val parts = mutableListOf<String>()
     parts += when (job.state) {
         JobState.RUNNING -> "Downloading"
-        JobState.QUEUED -> "Queued"
+        JobState.QUEUED -> job.error ?: "Queued"
         JobState.PAUSED -> "Paused"
         JobState.FAILED -> job.error ?: "Failed"
         JobState.COMPLETED -> job.error ?: "In Downloads/LotusDM"
