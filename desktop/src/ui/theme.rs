@@ -141,6 +141,12 @@ pub fn install_system_fonts(ctx: &egui::Context) {
     if let Some(family) = fonts.families.get_mut(&FontFamily::Proportional) {
         family.insert(0, "system".into());
     }
+    // apply() asks for this family by name for headings; without the binding
+    // egui panics on the first text layout (windows-only: the fonts load).
+    fonts.families.insert(
+        FontFamily::Name(SEMIBOLD.into()),
+        vec![SEMIBOLD.into(), "system".into()],
+    );
     ctx.set_fonts(fonts);
     SYSTEM_FONTS.store(true, Ordering::Relaxed);
 }
