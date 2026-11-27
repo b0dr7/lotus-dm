@@ -6,9 +6,10 @@ use eframe::egui::{self, Align, CentralPanel, Layout, SidePanel, Stroke, Vec2};
 
 use crate::core::queue::{self, DownloadJob, JobStatus};
 use crate::core::settings::{self, Settings};
-use crate::engine::{Control, EngineState, Event};
+use crate::engine::{self, Control, EngineState, Event};
 use crate::ui::add_dialog::{self, AddDialog};
 use crate::ui::queue_view;
+use crate::ui::settings_view;
 use crate::ui::sidebar;
 use crate::ui::theme::{self, Palette};
 
@@ -36,6 +37,7 @@ impl LotusApp {
         theme::install_system_fonts(&cc.egui_ctx);
         let settings = settings::load();
         theme::apply(settings.theme_mode, &cc.egui_ctx);
+        engine::set_global_limit_kbps(settings.global_speed_limit_kbps);
 
         let mut queue = queue::load();
         for job in queue.iter_mut() {
@@ -198,7 +200,7 @@ impl eframe::App for LotusApp {
                 "Nothing here yet. New downloads will show up here.",
                 &p,
             ),
-            Nav::Settings => placeholder(ui, "Settings", "Settings arrive in a later phase.", &p),
+            Nav::Settings => settings_view::settings_panel(ui, &mut self.settings, &p),
         });
 
         add_dialog::add_dialog_window(

@@ -1,14 +1,21 @@
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock, Mutex};
 use std::thread;
 
 use crate::core::queue::DownloadJob;
 
 pub mod job;
+pub mod seg_thread;
+pub mod segmented;
 pub mod worker;
 
+use job::RateLimiter;
+
 pub use job::EngineState;
+
+pub const SEGMENTS: usize = 8;
 
 #[derive(Default)]
 pub struct Control {
@@ -56,5 +63,46 @@ pub enum Event {
 }
 
 pub fn spawn_download(job: DownloadJob, control: Arc<Control>, tx: Sender<Event>) {
-    thread::spawn(move || worker::run(job, control, tx));
+    thread::spawn(move || worker::run(job, control, tx, 0));
+}
+
+/// Process-wide cap shared by every segment of every running download.
+static GLOBAL_LIMITER: LazyLock<Mutex<RateLimiter>> =
+    LazyLock::new(|| Mutex::new(RateLimiter::new(0)));
+
+pub fn set_global_limit_kbps(kbps: u64) {
+    GLOBAL_LIMITER
+        .lock()
+        .unwrap_or_else(|err| err.into_inner())
+        .set_limit(kbps);
+}
+
+pub(crate) fn throttle_global(n: u64) {
+    GLOBAL_LIMITER
+        .lock()
+        .unwrap_or_else(|err| err.into_inner())
+        .throttle(n);
+}
+
+pub(crate) fn emit(tx: &Sender<Event>, event: Event) {
+    let _ = tx.send(event);
+}
+
+pub(crate) fn emit_state(tx: &Sender<Event>, id: &str, state: EngineState) {
+    emit(
+        tx,
+        Event::State {
+            id: id.to_string(),
+            state,
+        },
+    );
+}
+
+pub(crate) fn fail(tx: &Sender<Event>, id: &str, message: String) {
+    emit_state(tx, id, EngineState::Failed(message));
+}
+
+pub(crate) fn cancelled_cleanup(tx: &Sender<Event>, id: &str, parts: &Path) {
+    let _ = std::fs::remove_dir_all(parts);
+    emit_state(tx, id, EngineState::Queued);
 }
