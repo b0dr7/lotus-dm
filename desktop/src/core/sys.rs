@@ -190,9 +190,9 @@ pub fn set_main_window_visible(visible: bool) {
         use std::os::windows::ffi::OsStrExt;
         #[link(name = "user32")]
         extern "system" {
-            fn FindWindowW(class: *const u16, name: *const u16) -> isize;
-            fn ShowWindow(hwnd: isize, cmd: i32) -> i32;
-            fn SetForegroundWindow(hwnd: isize) -> i32;
+            fn FindWindowW(class: *const u16, name: *const u16) -> *mut core::ffi::c_void;
+            fn ShowWindow(hwnd: *mut core::ffi::c_void, cmd: i32) -> i32;
+            fn SetForegroundWindow(hwnd: *mut core::ffi::c_void) -> i32;
         }
         const SW_HIDE: i32 = 0;
         const SW_SHOW: i32 = 5;
@@ -203,7 +203,7 @@ pub fn set_main_window_visible(visible: bool) {
             .collect();
         unsafe {
             let hwnd = FindWindowW(std::ptr::null(), title.as_ptr());
-            if hwnd == 0 {
+            if hwnd.is_null() {
                 return;
             }
             if visible {

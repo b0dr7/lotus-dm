@@ -39,7 +39,8 @@ pub struct LotusApp {
     bridge_rx: Receiver<bridge::AddRequest>,
     bridge_port: Option<u16>,
     light_theme: bool,
-    tray: Option<Tray>,
+    /// Holds the tray icon alive; dropping it removes the icon.
+    _tray: Option<Tray>,
     quitting: bool,
     hidden: bool,
 }
@@ -99,7 +100,7 @@ impl LotusApp {
             bridge_rx,
             bridge_port,
             light_theme,
-            tray,
+            _tray: tray,
             quitting: false,
             hidden,
         }
