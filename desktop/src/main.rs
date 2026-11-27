@@ -27,9 +27,11 @@ mod single_instance {
         fn SetForegroundWindow(hWnd: *mut c_void) -> i32;
         fn ShowWindow(hWnd: *mut c_void, nCmdShow: i32) -> i32;
         fn IsIconic(hWnd: *mut c_void) -> i32;
+        fn IsWindowVisible(hWnd: *mut c_void) -> i32;
     }
 
     const ERROR_ALREADY_EXISTS: u32 = 183;
+    const SW_SHOW: i32 = 5;
     const SW_RESTORE: i32 = 9;
 
     pub fn ensure_single_instance() -> bool {
@@ -50,6 +52,10 @@ mod single_instance {
             let hwnd = unsafe { FindWindowW(std::ptr::null(), title.as_ptr()) };
             if !hwnd.is_null() {
                 unsafe {
+                    // The running instance may be hiding in the tray.
+                    if IsWindowVisible(hwnd) == 0 {
+                        ShowWindow(hwnd, SW_SHOW);
+                    }
                     if IsIconic(hwnd) != 0 {
                         ShowWindow(hwnd, SW_RESTORE);
                     }

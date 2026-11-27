@@ -142,7 +142,7 @@ extern "system" {
     ) -> i32;
     fn DestroyMenu(menu: isize) -> i32;
     fn GetCursorPos(point: *mut Point) -> i32;
-    fn SetForegroundWindow(hwnd: isize) -> i32;
+    fn SetForegroundWindow(hwnd: *mut core::ffi::c_void) -> i32;
     fn PostMessageW(hwnd: isize, msg: u32, wparam: usize, lparam: isize) -> i32;
 }
 
@@ -227,7 +227,7 @@ unsafe fn show_menu(hwnd: isize) {
     GetCursorPos(&mut point);
     // The classic pairing: focus first, then the menu, otherwise it can stay
     // open when the user clicks elsewhere.
-    SetForegroundWindow(hwnd);
+    SetForegroundWindow(hwnd as *mut core::ffi::c_void);
     let command = TrackPopupMenu(
         menu,
         TPM_RETURNCMD | TPM_RIGHTBUTTON,
