@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>(function(){var t=null;try{t=localStorage.getItem("lotus-theme-dm")}catch(e){}
-if(t!=="dark"&&t!=="light"&&t!=="amoled"&&t!=="hc"){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches)?"light":"dark"}
+if(t!=="dark"&&t!=="light"&&t!=="amoled"&&t!=="hc"&&t!=="hc-light"){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches)?"light":"dark"}
 document.documentElement.setAttribute("data-theme",t)})();</script>
 <title>Terms of Service - Lotus Download Manager</title>
 <link rel="icon" href="../assets/lotus.svg" type="image/svg+xml">
@@ -13,12 +13,7 @@ document.documentElement.setAttribute("data-theme",t)})();</script>
 <body>
 <header class="site-header">
   <a class="brand" href="../"><span class="logo" aria-hidden="true"></span><span>Lotus Download Manager</span></a>
-  <nav class="nav" aria-label="Main">
-    <a href="../">Home</a>
-    <a href="./" aria-current="page">Terms</a>
-    <a href="../privacy/">Privacy</a>
-  </nav>
-  <div class="theme-picker" id="theme-picker" role="group" aria-label="Color theme"></div>
+  <div class="theme-picker" id="theme-picker" aria-label="Color theme"></div>
 </header>
 
 <main class="wrap legal">
@@ -36,7 +31,7 @@ document.documentElement.setAttribute("data-theme",t)})();</script>
 </main>
 
 <footer class="site-footer">
-  <a href="./">Terms</a> | <a href="../privacy/">Privacy</a>
+  <a href="./" aria-current="page">Terms</a> | <a href="../privacy/">Privacy</a>
 </footer>
 <script src="../theme.js"></script>
 </body>
