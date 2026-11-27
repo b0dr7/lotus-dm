@@ -11,6 +11,10 @@ pub struct Settings {
     pub theme_mode: ThemeMode,
     pub default_folder: String,
     pub global_speed_limit_kbps: u64,
+    pub clipboard_watch: bool,
+    pub auto_start_enabled: bool,
+    pub auto_start_hour: u8,
+    pub auto_start_minute: u8,
 }
 
 impl Default for Settings {
@@ -19,6 +23,10 @@ impl Default for Settings {
             theme_mode: ThemeMode::Dark,
             default_folder: default_download_folder(),
             global_speed_limit_kbps: 0,
+            clipboard_watch: false,
+            auto_start_enabled: false,
+            auto_start_hour: 0,
+            auto_start_minute: 0,
         }
     }
 }
