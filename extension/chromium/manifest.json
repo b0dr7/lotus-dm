@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Lotus Download Manager",
+  "version": "1.0.0",
+  "description": "Send links from Chrome or Edge straight to the Lotus Download Manager queue.",
+  "homepage_url": "https://b0dr7.github.io/lotus-dm/",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "permissions": [
+    "activeTab",
+    "contextMenus",
+    "storage"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Lotus Download Manager",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png"
+    }
+  }
+}

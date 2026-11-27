@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>(function(){var t=null;try{t=localStorage.getItem("lotus-theme-dm")}catch(e){}
+if(t!=="dark"&&t!=="light"&&t!=="amoled"&&t!=="hc"&&t!=="hc-light"){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches)?"light":"dark"}
+document.documentElement.setAttribute("data-theme",t)})();</script>
+<title>Browser extension - Lotus Download Manager</title>
+<link rel="icon" href="../assets/lotus.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="theme-picker" id="theme-picker" aria-label="Color theme"></div>
+
+<main class="legal">
+  <div class="mark mark--compact" aria-label="Lotus Download Manager" draggable="false">
+    <span class="mark-ico" aria-hidden="true"></span>
+    <span class="mark-txt">Lotus</span>
+  </div>
+
+  <h1>Lotus in your browser</h1>
+  <p>Right-click a link and choose <strong>Download with Lotus DM</strong>, or open the toolbar popup to send the page you are on. The extension hands the link to the running app over <code>127.0.0.1</code> and the download joins the same queue as everything else. Nothing leaves your machine - there is no account and no server in the middle.</p>
+  <p class="note">The desktop app must be running for a link to be accepted. Android has no extension: share a link to Lotus DM from any browser instead.</p>
+
+  <h2 id="firefox">Firefox</h2>
+  <p>One click from addons.mozilla.org installs it into Firefox like any other add-on, updates included.</p>
+  <p>
+    <a class="btn btn-primary" href="https://addons.mozilla.org/firefox/" rel="noopener">Firefox install page</a>
+  </p>
+  <p class="note">The listing is in review. This button becomes the direct install link as soon as it is approved; until then, use the Chromium steps below in a Chromium browser, or the Android share target.</p>
+
+  <h2 id="chromium">Chrome, Edge, Brave, Opera</h2>
+  <p>Chromium browsers need the folder once, then they keep it. It takes about a minute.</p>
+  <p>
+    <a class="btn btn-primary" href="https://github.com/b0dr7/lotus-dm/releases/latest/download/LotusDM-extension-chromium.zip">Download the extension .zip</a>
+  </p>
+  <ol>
+    <li>Unzip the file into a folder you will keep, for example <code>Documents\Lotus-extension</code>.</li>
+    <li>Open <code>chrome://extensions</code> - in Edge that is <code>edge://extensions</code>.</li>
+    <li>Turn on <strong>Developer mode</strong> (top right of that page).</li>
+    <li>Click <strong>Load unpacked</strong> and pick the folder you unzipped.</li>
+    <li>Pin Lotus to the toolbar from the puzzle-piece menu, so the icon is one click away.</li>
+    <li>Start Lotus Download Manager, then click the Lotus icon: the badge should read <strong>connected</strong>.</li>
+  </ol>
+  <p class="note">Keep that folder where it is. If you move or delete it, the extension stops working and has to be loaded again. To update it later, replace the files inside the folder and press the reload arrow on the extension card.</p>
+
+  <h2 id="check">If the badge says "app not running"</h2>
+  <p>With Lotus Download Manager open, visit <a href="http://127.0.0.1:8460/ping">http://127.0.0.1:8460/ping</a> in the same browser. You should see <code>{"ok":true,...}</code>.</p>
+  <ul>
+    <li>No answer: the app is closed, or its bridge is switched off in <strong>Settings - Browser bridge</strong>.</li>
+    <li>Something else answers, or the port is busy: change the port in that same settings block, restart the app, then type the new port into the extension popup and press <strong>Save</strong>.</li>
+  </ul>
+
+  <p class="note">The extension asks for one host permission, <code>http://127.0.0.1/*</code>, and nothing else. It reads the tab you send and the link you right-click. No analytics, no remote code.</p>
+</main>
+
+<footer class="site-footer">
+  <a href="../">Lotus Download Manager</a>
+  <span class="sep" aria-hidden="true">|</span>
+  <a href="./" aria-current="page">Extension</a>
+  <span class="sep" aria-hidden="true">|</span>
+  <a href="../terms/">Terms</a>
+  <span class="sep" aria-hidden="true">|</span>
+  <a href="../privacy/">Privacy</a>
+</footer>
+<script src="../theme.js"></script>
+</body>
+</html>

@@ -10,7 +10,7 @@ fn persist(cfg: &Settings) {
     }
 }
 
-pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, p: &Palette) {
+pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option<u16>, p: &Palette) {
     ui.add_space(8.0);
     ui.heading("Settings");
     ui.add_space(16.0);
@@ -91,5 +91,49 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, p: &Palette) {
     if schedule_changed {
         persist(cfg);
     }
+    ui.add_space(12.0);
+
+    ui.label(RichText::new("Browser bridge").color(p.text));
+    ui.label(
+        RichText::new(
+            "Lets the Lotus extension hand links to the queue. Listens on 127.0.0.1 only - \
+             nothing is reachable from other machines.",
+        )
+        .color(p.muted),
+    );
+    ui.add_space(4.0);
+    let mut bridge_changed = ui
+        .checkbox(&mut cfg.bridge_enabled, "Accept links from the browser extension")
+        .changed();
+    ui.horizontal(|ui| {
+        bridge_changed |= ui
+            .add(
+                egui::DragValue::new(&mut cfg.bridge_port)
+                    .range(1024..=65535)
+                    .speed(1),
+            )
+            .changed();
+        ui.label(RichText::new("port - takes effect after restart").color(p.muted));
+    });
+    let state = match (cfg.bridge_enabled, bridge_port) {
+        (true, Some(port)) => format!("Listening on http://127.0.0.1:{port}/ping"),
+        (true, None) => "Not listening - the port is busy. Change it and restart.".to_string(),
+        (false, _) => "Off - the browser extension cannot reach this app.".to_string(),
+    };
+    ui.label(RichText::new(state).color(p.muted));
+    if bridge_changed {
+        persist(cfg);
+    }
+    ui.add_space(6.0);
+    ui.label(RichText::new("Extension setup").color(p.text));
+    ui.label(
+        RichText::new(
+            "Firefox: install Lotus from addons.mozilla.org. Chromium: download the .zip from \
+             the Lotus site, unzip it, open chrome://extensions, turn on Developer mode, click \
+             Load unpacked and pick the unzipped folder. Then pin Lotus to the toolbar. The \
+             bridge line above should read Listening.",
+        )
+        .color(p.muted),
+    );
     ui.add_space(8.0);
 }

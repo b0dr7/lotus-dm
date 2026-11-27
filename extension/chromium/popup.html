@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lotus Download Manager</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="head">
+    <img src="icons/icon-32.png" alt="" width="20" height="20">
+    <span class="name">Lotus</span>
+    <span class="state" id="state">checking</span>
+  </header>
+
+  <p class="label">This tab</p>
+  <p class="url" id="url">-</p>
+
+  <button id="send" class="primary" type="button" disabled>Add to queue</button>
+  <p class="note" id="note"></p>
+
+  <footer class="foot">
+    <label for="port">Bridge port</label>
+    <input id="port" type="number" min="1024" max="65535" step="1" inputmode="numeric">
+    <button id="save" class="ghost" type="button">Save</button>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>
