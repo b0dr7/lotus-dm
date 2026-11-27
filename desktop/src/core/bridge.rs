@@ -219,6 +219,7 @@ fn respond(stream: &mut TcpStream, status: u16, body: &str) {
          Access-Control-Allow-Origin: *\r\n\
          Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n\
          Access-Control-Allow-Headers: Content-Type\r\n\
+         Access-Control-Allow-Private-Network: true\r\n\
          Access-Control-Max-Age: 600\r\n\
          Cache-Control: no-store\r\n\
          Connection: close\r\n\r\n"
