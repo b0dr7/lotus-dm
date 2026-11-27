@@ -12,6 +12,7 @@ use crate::engine::{self, Control, EngineState, Event};
 use crate::ui::add_dialog::{self, AddDialog};
 use crate::ui::batch_dialog::{self, BatchDialog};
 use crate::ui::clipboard_watch::{ClipboardWatch, PromptAction};
+use crate::ui::help_view;
 use crate::ui::lifecycle;
 use crate::ui::queue_view::{self, Filter};
 use crate::ui::settings_view;
@@ -44,6 +45,7 @@ enum Nav {
     Home,
     Queue,
     Settings,
+    Help,
 }
 
 impl LotusApp {
@@ -259,6 +261,9 @@ impl LotusApp {
                 if sidebar::nav_pill(ui, "Settings", self.nav == Nav::Settings, p) {
                     self.nav = Nav::Settings;
                 }
+                if sidebar::nav_pill(ui, "Help", self.nav == Nav::Help, p) {
+                    self.nav = Nav::Help;
+                }
 
                 ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
                     ui.add_space(10.0);
@@ -382,6 +387,9 @@ impl eframe::App for LotusApp {
             }
             Nav::Settings => {
                 settings_view::settings_panel(ui, &mut self.settings, self.bridge_port, &p)
+            }
+            Nav::Help => {
+                help_view::help_panel(ui, &p);
             }
         });
 
