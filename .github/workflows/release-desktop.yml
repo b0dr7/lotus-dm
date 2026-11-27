@@ -1,0 +1,54 @@
+name: release-desktop
+
+# Tag push (v*) builds the Windows binaries and attaches them to the
+# GitHub Release for that tag. No tag is pushed by CI itself.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Add Windows targets
+        run: rustup target add x86_64-pc-windows-msvc i686-pc-windows-msvc
+
+      - name: Build x64
+        run: cargo build --release --target x86_64-pc-windows-msvc
+
+      - name: Build x86
+        run: cargo build --release --target i686-pc-windows-msvc
+
+      - name: Name release assets
+        shell: pwsh
+        run: |
+          $out = $PWD.Path
+          Copy-Item "target/x86_64-pc-windows-msvc/release/lotus-dm.exe" "$out/LotusDM-windows-x64.exe"
+          Copy-Item "target/i686-pc-windows-msvc/release/lotus-dm.exe"  "$out/LotusDM-windows-x86.exe"
+          # A 32-bit PE runs on both 32- and 64-bit Windows (WOW64), so the
+          # i686 build is the one that works everywhere: the universal asset.
+          Copy-Item "target/i686-pc-windows-msvc/release/lotus-dm.exe"  "$out/LotusDM-windows-universal.exe"
+          Get-ChildItem "$out/LotusDM-windows-*.exe" | Select-Object Name, Length
+
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          fail_on_unmatched_files: true
+          files: |
+            desktop/LotusDM-windows-x64.exe
+            desktop/LotusDM-windows-x86.exe
+            desktop/LotusDM-windows-universal.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
