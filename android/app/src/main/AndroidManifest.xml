@@ -27,6 +27,33 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".AddActivity"
+            android:exported="true"
+            android:label="Add to Lotus DM"
+            android:theme="@style/Theme.LotusDM">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:mimeType="application/octet-stream" />
+                <data android:mimeType="application/zip" />
+                <data android:mimeType="application/x-rar-compressed" />
+                <data android:mimeType="application/x-7z-compressed" />
+                <data android:mimeType="application/pdf" />
+                <data android:mimeType="audio/*" />
+                <data android:mimeType="video/*" />
+                <data android:mimeType="application/vnd.android.package-archive" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
         <service
             android:name=".service.DownloadForegroundService"
             android:exported="false"
