@@ -2,7 +2,7 @@ use eframe::egui::{self, RichText};
 
 use crate::core::settings::{self, Settings};
 use crate::engine;
-use crate::ui::theme::Palette;
+use crate::ui::theme::{self, Palette, ThemeMode};
 
 fn persist(cfg: &Settings) {
     if let Err(err) = settings::save(cfg) {
@@ -14,6 +14,35 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
     ui.add_space(8.0);
     ui.heading("Settings");
     ui.add_space(16.0);
+
+    ui.label(RichText::new("Theme").color(p.text));
+    ui.label(
+        RichText::new("System follows the Windows light and dark setting.").color(p.muted),
+    );
+    ui.add_space(6.0);
+    let mut mode = cfg.theme_mode;
+    ui.horizontal_wrapped(|ui| {
+        for candidate in [
+            ThemeMode::System,
+            ThemeMode::Dark,
+            ThemeMode::Light,
+            ThemeMode::Amoled,
+            ThemeMode::HighContrast,
+        ] {
+            if ui
+                .selectable_label(mode == candidate, candidate.label())
+                .clicked()
+            {
+                mode = candidate;
+            }
+        }
+    });
+    if mode != cfg.theme_mode {
+        cfg.theme_mode = mode;
+        theme::apply(mode, ui.ctx());
+        persist(cfg);
+    }
+    ui.add_space(14.0);
 
     ui.label(RichText::new("Default download folder").color(p.text));
     ui.horizontal(|ui| {

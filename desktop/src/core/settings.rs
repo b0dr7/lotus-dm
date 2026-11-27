@@ -22,7 +22,7 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            theme_mode: ThemeMode::Dark,
+            theme_mode: ThemeMode::System,
             default_folder: default_download_folder(),
             global_speed_limit_kbps: 0,
             clipboard_watch: false,
