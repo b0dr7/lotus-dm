@@ -1,6 +1,8 @@
 package com.b0dr7.lotusdm.engine
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Handler
 import android.os.Looper
 import kotlinx.coroutines.CoroutineScope
@@ -26,6 +28,7 @@ private const val META_NAME = "meta.json"
 private const val SINGLE_PART = "part"
 private const val MERGED_NAME = "merged"
 private const val MAX_SEGMENTS = 8
+private const val MAX_CONCURRENT_DEFAULT = 3
 private const val MIN_SEGMENTED_SIZE = 2L * 1024L * 1024L
 
 private val RETRY_DELAYS = longArrayOf(30_000L, 120_000L, 600_000L)
@@ -57,6 +60,17 @@ class DownloadEngine private constructor(context: Context) {
     @Volatile
     var speedLimit: Long = 0L
 
+    /** When set, nothing runs unless the phone is on Wi-Fi. */
+    @Volatile
+    var wifiOnly: Boolean = false
+
+    /** How many jobs may run at the same time; the rest wait by priority. */
+    @Volatile
+    var maxConcurrent: Int = MAX_CONCURRENT_DEFAULT
+
+    @Volatile
+    private var lastAllowed: Boolean = true
+
     init {
         restore()
     }
@@ -72,6 +86,9 @@ class DownloadEngine private constructor(context: Context) {
         @Volatile var error: String?,
         @Volatile var limit: Long,
         val created: Long,
+        @Volatile var tag: String = "",
+        @Volatile var priority: JobPriority = JobPriority.NORMAL,
+        @Volatile var kind: JobKind = JobKind.HTTP,
     ) {
         @Volatile
         var speed: Long = 0L
@@ -111,6 +128,14 @@ class DownloadEngine private constructor(context: Context) {
         @Volatile
         var run: kotlinx.coroutines.Job? = null
 
+        /** Set while the Wi-Fi gate is holding this job back. */
+        @Volatile
+        var awaitingWifi: Boolean = false
+
+        /** Backoff deadline of an automatic retry, 0 when there is none. */
+        @Volatile
+        var retryAt: Long = 0L
+
         fun toPublic(): DownloadJob = DownloadJob(
             id = id,
             url = url,
@@ -123,6 +148,10 @@ class DownloadEngine private constructor(context: Context) {
             uri = uri,
             mime = CompletedFileStore.mimeFor(fileName),
             limit = limit,
+            tag = tag,
+            priority = priority,
+            kind = kind,
+            awaitingWifi = awaitingWifi,
         )
     }
 
@@ -131,8 +160,12 @@ class DownloadEngine private constructor(context: Context) {
         callback?.let { publish(it, snapshot()) }
     }
 
-    fun snapshot(): List<DownloadJob> =
-        entries.values.sortedBy { it.created }.map { it.toPublic() }
+    /** Priority first, then queue age - the same order the pump starts in. */
+    private fun ordered(): List<Entry> = entries.values.sortedWith(
+        compareByDescending<Entry> { it.priority.rank }.thenBy { it.created },
+    )
+
+    fun snapshot(): List<DownloadJob> = ordered().map { it.toPublic() }
 
     fun hasWork(): Boolean =
         entries.values.any { it.state == JobState.RUNNING || it.state == JobState.QUEUED }
@@ -162,30 +195,82 @@ class DownloadEngine private constructor(context: Context) {
         entries[id] = entry
         persist(entry)
         publishStatus()
-        start(id)
+        pump()
         return entry.toPublic()
     }
 
+    /** Explicit user start (or a retry). Respects the Wi-Fi gate. */
     fun start(id: String) {
         val entry = entries[id] ?: return
         if (entry.state == JobState.RUNNING) return
+        entry.retryAt = 0L
+        if (!networkAllowed()) {
+            entry.awaitingWifi = true
+            entry.state = JobState.QUEUED
+            entry.error = "Waiting for Wi-Fi"
+            persist(entry)
+            publishStatus()
+            return
+        }
+        begin(entry)
+    }
+
+    private fun begin(entry: Entry) {
         entry.run?.cancel()
         entry.state = JobState.RUNNING
         entry.error = null
+        entry.awaitingWifi = false
+        entry.retryAt = 0L
         persist(entry)
         publishStatus()
         entry.run = scope.launch { download(entry) }
+    }
+
+    /**
+     * Starts as many queued jobs as the concurrency setting allows, highest
+     * priority first. Called after every state change that frees a slot.
+     */
+    fun pump() {
+        if (!networkAllowed()) return
+        var slots = maxConcurrent.coerceAtLeast(1) -
+            entries.values.count { it.state == JobState.RUNNING }
+        if (slots <= 0) return
+        val now = System.currentTimeMillis()
+        for (entry in ordered()) {
+            if (slots <= 0) break
+            if (entry.state != JobState.QUEUED || entry.run != null) continue
+            if (entry.retryAt > now) continue
+            begin(entry)
+            slots--
+        }
     }
 
     fun pause(id: String) {
         val entry = entries[id] ?: return
         if (entry.state != JobState.RUNNING) return
         entry.state = JobState.PAUSED
+        entry.awaitingWifi = false
         entry.speed = 0L
         entry.run?.cancel()
         entry.run = null
         persist(entry)
         publishStatus()
+        pump()
+    }
+
+    fun setTag(id: String, tag: String) {
+        val entry = entries[id] ?: return
+        entry.tag = tag
+        persist(entry)
+        publishStatus()
+    }
+
+    fun setPriority(id: String, priority: JobPriority) {
+        val entry = entries[id] ?: return
+        entry.priority = priority
+        persist(entry)
+        publishStatus()
+        pump()
     }
 
     fun resume(id: String) = start(id)
@@ -205,6 +290,7 @@ class DownloadEngine private constructor(context: Context) {
         entries.remove(id)
         entry.dir.deleteRecursively()
         publishStatus()
+        pump()
     }
 
     /** Drops finished rows but keeps the files they produced. */
@@ -215,6 +301,7 @@ class DownloadEngine private constructor(context: Context) {
             entry.dir.deleteRecursively()
         }
         publishStatus()
+        pump()
     }
 
     /** Removes a finished row and the file it created. */
@@ -228,6 +315,7 @@ class DownloadEngine private constructor(context: Context) {
         entries.remove(id)
         entry.dir.deleteRecursively()
         publishStatus()
+        pump()
         return removed
     }
 
@@ -236,6 +324,70 @@ class DownloadEngine private constructor(context: Context) {
         entry.limit = bytesPerSecond
         persist(entry)
         publishStatus()
+    }
+
+    // ------------------------------------------------------------- networks
+
+    private fun isOnWifi(): Boolean {
+        val manager = appContext.getSystemService(Context.CONNECTIVITY_SERVICE)
+            as? ConnectivityManager ?: return true
+        val network = manager.activeNetwork ?: return false
+        val caps = manager.getNetworkCapabilities(network) ?: return false
+        return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+    }
+
+    private fun networkAllowed(): Boolean = !wifiOnly || isOnWifi()
+
+    /**
+     * Called once a second by the foreground service. Holds the queue back on
+     * mobile data and lets it go again when Wi-Fi comes back, without a
+     * network callback the app would have to unregister.
+     */
+    /** Re-applies the Wi-Fi gate right after the setting changed. */
+    fun refreshNetwork() {
+        lastAllowed = !networkAllowed()
+        onNetworkTick()
+    }
+
+    fun onNetworkTick() {
+        val allowed = networkAllowed()
+        if (allowed == lastAllowed) {
+            if (allowed) pump()
+            return
+        }
+        lastAllowed = allowed
+        if (allowed) releaseWifiHold() else holdForWifi()
+    }
+
+    private fun holdForWifi() {
+        var touched = false
+        for (entry in entries.values) {
+            if (entry.state != JobState.RUNNING) continue
+            entry.awaitingWifi = true
+            entry.state = JobState.PAUSED
+            entry.speed = 0L
+            entry.error = "Paused: waiting for Wi-Fi"
+            entry.run?.cancel()
+            entry.run = null
+            persist(entry)
+            touched = true
+        }
+        if (touched) publishStatus()
+    }
+
+    private fun releaseWifiHold() {
+        var touched = false
+        for (entry in entries.values) {
+            if (!entry.awaitingWifi) continue
+            entry.awaitingWifi = false
+            entry.error = null
+            entry.state = JobState.QUEUED
+            persist(entry)
+            touched = true
+        }
+        if (touched) publishStatus()
+        pump()
     }
 
     // ---------------------------------------------------------------- work
@@ -271,6 +423,8 @@ class DownloadEngine private constructor(context: Context) {
             handleFailure(entry, t)
         } finally {
             entry.run = null
+            // A finished/paused job frees a slot for the next queued one.
+            pump()
         }
     }
 
@@ -283,19 +437,24 @@ class DownloadEngine private constructor(context: Context) {
             val wait = RETRY_DELAYS[attempt]
             entry.attempts = attempt + 1
             entry.state = JobState.QUEUED
+            entry.retryAt = System.currentTimeMillis() + wait
             entry.error = "Retrying in ${wait / 1000}s (attempt ${attempt + 1} of ${RETRY_DELAYS.size})"
             persist(entry)
             publishStatus()
             scope.launch {
                 delay(wait)
-                if (entries[entry.id]?.state == JobState.QUEUED) start(entry.id)
+                val current = entries[entry.id] ?: return@launch
+                if (current.state == JobState.QUEUED) current.retryAt = 0L
+                pump()
             }
             return
         }
 
         entry.state = JobState.FAILED
+        entry.retryAt = 0L
         persist(entry)
         publishStatus()
+        pump()
     }
 
     /** Ranged GET for one byte tells us both the size and whether Range works. */
@@ -588,6 +747,9 @@ class DownloadEngine private constructor(context: Context) {
                     .put("segments", segments)
                     .put("attempts", entry.attempts)
                     .put("limit", entry.limit)
+                    .put("tag", entry.tag)
+                    .put("priority", entry.priority.name)
+                    .put("kind", entry.kind.name)
                 File(entry.dir, META_NAME).writeText(json.toString())
             }
         }
@@ -627,6 +789,13 @@ class DownloadEngine private constructor(context: Context) {
                 entry.savedPath = json.optString("savedPath", "").ifEmpty { null }
                 entry.attempts = json.optInt("attempts", 0)
                 entry.segCount = json.optInt("segCount", 0)
+                entry.tag = json.optString("tag", "")
+                entry.priority = JobPriority.entries
+                    .firstOrNull { it.name == json.optString("priority", "") }
+                    ?: JobPriority.NORMAL
+                entry.kind = JobKind.entries
+                    .firstOrNull { it.name == json.optString("kind", "") }
+                    ?: JobKind.HTTP
 
                 val segments = json.optJSONArray("segments")
                 if (segments != null && entry.segCount > 0) {

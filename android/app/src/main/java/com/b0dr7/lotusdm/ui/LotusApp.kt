@@ -29,6 +29,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.b0dr7.lotusdm.R
+import com.b0dr7.lotusdm.data.SettingsStore
 import com.b0dr7.lotusdm.ui.screens.HomeScreen
 import com.b0dr7.lotusdm.ui.screens.QueueScreen
 import com.b0dr7.lotusdm.ui.screens.SettingsScreen
@@ -48,8 +49,8 @@ private val tabs = listOf(
 fun LotusApp(
     mode: ThemeMode,
     onModeChange: (ThemeMode) -> Unit,
-    speedLimitKb: Int,
-    onSpeedLimitChange: (Int) -> Unit,
+    store: SettingsStore,
+    onSettingsChanged: () -> Unit,
 ) {
     val colors = LocalLotusColors.current
     val window = rememberWindowClass()
@@ -62,8 +63,8 @@ fun LotusApp(
             else -> SettingsScreen(
                 mode = mode,
                 onModeChange = onModeChange,
-                speedLimitKb = speedLimitKb,
-                onSpeedLimitChange = onSpeedLimitChange,
+                store = store,
+                onSettingsChanged = onSettingsChanged,
             )
         }
     }

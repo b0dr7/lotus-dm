@@ -57,7 +57,9 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.b0dr7.lotusdm.engine.DownloadEngine
 import com.b0dr7.lotusdm.engine.DownloadJob
+import com.b0dr7.lotusdm.engine.JobPriority
 import com.b0dr7.lotusdm.engine.JobState
+import com.b0dr7.lotusdm.engine.nextTag
 import com.b0dr7.lotusdm.service.DownloadForegroundService
 import com.b0dr7.lotusdm.ui.Page
 import com.b0dr7.lotusdm.ui.rememberWindowClass
@@ -159,6 +161,8 @@ fun QueueScreen() {
                 if (!removed) message = "Removed the row, but the file was already gone."
             },
             onCycleLimit = { engine.setLimit(job.id, nextLimit(job.limit)) },
+            onCycleTag = { engine.setTag(job.id, nextTag(job.tag)) },
+            onCyclePriority = { engine.setPriority(job.id, job.priority.next()) },
         )
     }
 
@@ -344,6 +348,8 @@ private fun JobRow(
     onOpen: () -> Unit,
     onDelete: () -> Unit,
     onCycleLimit: () -> Unit,
+    onCycleTag: () -> Unit,
+    onCyclePriority: () -> Unit,
 ) {
     val colors = LocalLotusColors.current
 
@@ -354,14 +360,25 @@ private fun JobRow(
         border = BorderStroke(1.dp, colors.border),
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            Text(
-                text = job.fileName,
-                color = colors.text,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = job.fileName,
+                    color = colors.text,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                if (job.tag.isNotEmpty()) {
+                    Spacer(Modifier.width(8.dp))
+                    Badge(text = job.tag, accent = false)
+                }
+                if (job.priority != JobPriority.NORMAL) {
+                    Spacer(Modifier.width(6.dp))
+                    Badge(text = job.priority.label, accent = true)
+                }
+            }
             Spacer(Modifier.height(4.dp))
             Text(
                 text = metaLine(job),
@@ -410,7 +427,36 @@ private fun JobRow(
                     TextButton(onClick = onCycleLimit) { Text(limitLabel(job.limit)) }
                 }
             }
+
+            Spacer(Modifier.height(2.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                TextButton(onClick = onCycleTag) {
+                    Text(if (job.tag.isEmpty()) "+ Tag" else "Tag: ${job.tag}")
+                }
+                TextButton(onClick = onCyclePriority) {
+                    Text("Priority: ${job.priority.label}")
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun Badge(text: String, accent: Boolean) {
+    val colors = LocalLotusColors.current
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = if (accent) colors.accent.copy(alpha = 0.16f) else colors.surfaceAlt,
+    ) {
+        Text(
+            text = text,
+            color = if (accent) colors.accent else colors.muted,
+            fontSize = 11.sp,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+        )
     }
 }
 
@@ -424,12 +470,17 @@ private fun limitLabel(limit: Long): String =
 
 private fun metaLine(job: DownloadJob): String {
     val parts = mutableListOf<String>()
-    parts += when (job.state) {
-        JobState.RUNNING -> "Downloading"
-        JobState.QUEUED -> job.error ?: "Queued"
-        JobState.PAUSED -> "Paused"
-        JobState.FAILED -> job.error ?: "Failed"
-        JobState.COMPLETED -> job.error ?: "In Downloads/LotusDM"
+    if (job.awaitingWifi) {
+        parts += "Waiting for Wi-Fi"
+    } else {
+        if (job.isTorrent) parts += "Torrent"
+        parts += when (job.state) {
+            JobState.RUNNING -> "Downloading"
+            JobState.QUEUED -> job.error ?: "Queued"
+            JobState.PAUSED -> "Paused"
+            JobState.FAILED -> job.error ?: "Failed"
+            JobState.COMPLETED -> job.error ?: "In Downloads/LotusDM"
+        }
     }
     parts += if (job.total > 0L) {
         "${formatBytes(job.downloaded)} of ${formatBytes(job.total)}"
