@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use eframe::egui::{self, Align, CentralPanel, Layout, SidePanel, Stroke, TopBottomPanel, Vec2};
 
+use crate::core::bridge;
 use crate::core::queue::{self, DownloadJob, JobStatus};
 use crate::core::settings::{self, Settings};
 use crate::core::sys;
@@ -33,6 +34,8 @@ pub struct LotusApp {
     retry: lifecycle::RetryTracker,
     watch: ClipboardWatch,
     auto_armed: bool,
+    bridge_rx: Receiver<bridge::AddRequest>,
+    bridge_port: Option<u16>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -58,6 +61,17 @@ impl LotusApp {
         }
 
         let (event_tx, event_rx) = mpsc::channel();
+        let (bridge_tx, bridge_rx) = mpsc::channel();
+        let bridge_port = if settings.bridge_enabled {
+            let ctx = cc.egui_ctx.clone();
+            bridge::start(
+                settings.bridge_port,
+                bridge_tx,
+                Arc::new(move || ctx.request_repaint()),
+            )
+        } else {
+            None
+        };
         Self {
             settings,
             nav: Nav::Home,
@@ -72,6 +86,8 @@ impl LotusApp {
             retry: lifecycle::RetryTracker::default(),
             watch: ClipboardWatch::default(),
             auto_armed: true,
+            bridge_rx,
+            bridge_port,
         }
     }
 
@@ -92,6 +108,24 @@ impl LotusApp {
             lifecycle::spawn_job(job, &mut self.controls, &self.event_tx);
         }
         self.url_input.clear();
+    }
+
+    /// Links handed over by the browser extension land here.
+    fn drain_bridge(&mut self) {
+        while let Ok(request) = self.bridge_rx.try_recv() {
+            let filename = request
+                .filename
+                .unwrap_or_else(|| queue::derive_filename(&request.url));
+            let folder = self.settings.default_folder.clone();
+            self.queue
+                .push(DownloadJob::new_queued(request.url, filename, folder));
+            if let Err(err) = queue::save(&self.queue) {
+                eprintln!("lotusdm: queue save failed: {err}");
+            }
+            if let Some(job) = self.queue.last() {
+                lifecycle::spawn_job(job, &mut self.controls, &self.event_tx);
+            }
+        }
     }
 
     fn drain_events(&mut self) {
@@ -267,6 +301,7 @@ impl LotusApp {
 
 impl eframe::App for LotusApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.drain_bridge();
         self.drain_events();
         lifecycle::pump_retries(
             &mut self.queue,
@@ -332,7 +367,9 @@ impl eframe::App for LotusApp {
                     &p,
                 );
             }
-            Nav::Settings => settings_view::settings_panel(ui, &mut self.settings, &p),
+            Nav::Settings => {
+                settings_view::settings_panel(ui, &mut self.settings, self.bridge_port, &p)
+            }
         });
 
         add_dialog::add_dialog_window(

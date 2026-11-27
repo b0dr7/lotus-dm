@@ -1,0 +1,52 @@
+name: release-extension
+
+# Tag push (v*) packages the two extension builds and attaches them to the
+# GitHub Release for that tag. The Firefox archive is the unsigned .xpi used
+# for the AMO upload; the Chromium one is the folder users load unpacked.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Package Firefox .xpi
+        run: |
+          set -e
+          mkdir -p dist
+          cd extension/firefox
+          zip -r -X ../../dist/LotusDM-extension-firefox.xpi . -x '.git*'
+          cd ../..
+
+      - name: Package Chromium .zip
+        run: |
+          set -e
+          cd extension/chromium
+          zip -r -X ../../dist/LotusDM-extension-chromium.zip . -x '.git*'
+          cd ../..
+
+      - name: Check archives
+        run: |
+          set -e
+          unzip -l dist/LotusDM-extension-chromium.zip
+          unzip -l dist/LotusDM-extension-firefox.xpi
+          unzip -p dist/LotusDM-extension-firefox.xpi manifest.json | head -5
+          test -f dist/LotusDM-extension-chromium.zip
+          test -f dist/LotusDM-extension-firefox.xpi
+
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          fail_on_unmatched_files: true
+          files: |
+            dist/LotusDM-extension-firefox.xpi
+            dist/LotusDM-extension-chromium.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
