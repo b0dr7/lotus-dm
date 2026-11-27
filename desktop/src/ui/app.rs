@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::Arc;
 
-use eframe::egui::{self, Align, CentralPanel, Layout, SidePanel, Stroke, Vec2};
+use eframe::egui::{self, Align, CentralPanel, Layout, SidePanel, Stroke, TopBottomPanel, Vec2};
 
 use crate::core::queue::{self, DownloadJob, JobStatus};
 use crate::core::settings::{self, Settings};
@@ -12,16 +12,18 @@ use crate::ui::add_dialog::{self, AddDialog};
 use crate::ui::batch_dialog::{self, BatchDialog};
 use crate::ui::clipboard_watch::{ClipboardWatch, PromptAction};
 use crate::ui::lifecycle;
-use crate::ui::queue_view;
+use crate::ui::queue_view::{self, Filter};
 use crate::ui::settings_view;
 use crate::ui::sidebar;
 use crate::ui::theme::{self, Palette};
 
-const NAV_WIDTH: f32 = 210.0;
+const NAV_WIDTH: f32 = 214.0;
 
 pub struct LotusApp {
     settings: Settings,
     nav: Nav,
+    filter: Filter,
+    url_input: String,
     queue: Vec<DownloadJob>,
     add_dialog: Option<AddDialog>,
     batch_dialog: Option<BatchDialog>,
@@ -59,6 +61,8 @@ impl LotusApp {
         Self {
             settings,
             nav: Nav::Home,
+            filter: Filter::All,
+            url_input: String::new(),
             queue,
             add_dialog: None,
             batch_dialog: None,
@@ -69,6 +73,25 @@ impl LotusApp {
             watch: ClipboardWatch::default(),
             auto_armed: true,
         }
+    }
+
+    /// Queue what is typed in the toolbar and start it right away.
+    fn submit_url(&mut self) {
+        let url = self.url_input.trim().to_string();
+        if url.is_empty() {
+            return;
+        }
+        let filename = queue::derive_filename(&url);
+        let folder = self.settings.default_folder.clone();
+        self.queue
+            .push(DownloadJob::new_queued(url, filename, folder));
+        if let Err(err) = queue::save(&self.queue) {
+            eprintln!("lotusdm: queue save failed: {err}");
+        }
+        if let Some(job) = self.queue.last() {
+            lifecycle::spawn_job(job, &mut self.controls, &self.event_tx);
+        }
+        self.url_input.clear();
     }
 
     fn drain_events(&mut self) {
@@ -172,6 +195,74 @@ impl LotusApp {
             self.auto_armed = true;
         }
     }
+
+    fn sidebar(&mut self, ctx: &egui::Context, p: &Palette) {
+        SidePanel::left("nav")
+            .resizable(false)
+            .default_width(NAV_WIDTH)
+            .frame(
+                egui::Frame::side_top_panel(&ctx.style())
+                    .fill(p.bg)
+                    .stroke(Stroke::new(1.0_f32, p.border)),
+            )
+            .show(ctx, |ui| {
+                ui.add_space(12.0);
+                let (_, logo_rect) = ui.allocate_space(Vec2::new(ui.available_width(), 76.0));
+                sidebar::draw_logo(ui, logo_rect, p);
+                ui.add_space(4.0);
+                sidebar::wordmark(ui, p);
+                ui.add_space(20.0);
+
+                if sidebar::nav_pill(ui, "Home", self.nav == Nav::Home, p) {
+                    self.nav = Nav::Home;
+                }
+                if sidebar::nav_pill(ui, "Queue", self.nav == Nav::Queue, p) {
+                    self.nav = Nav::Queue;
+                }
+                if sidebar::nav_pill(ui, "Settings", self.nav == Nav::Settings, p) {
+                    self.nav = Nav::Settings;
+                }
+
+                ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
+                    ui.add_space(10.0);
+                    sidebar::version_row(ui, p);
+                    sidebar::status_row(ui, p);
+                });
+            });
+    }
+
+    fn toolbar(&mut self, ctx: &egui::Context, p: &Palette) {
+        TopBottomPanel::top("toolbar")
+            .frame(
+                egui::Frame::side_top_panel(&ctx.style())
+                    .fill(p.bg)
+                    .stroke(Stroke::new(1.0_f32, p.border)),
+            )
+            .show(ctx, |ui| {
+                ui.add_space(9.0);
+                ui.horizontal(|ui| {
+                    let field_w = (ui.available_width() - 204.0).max(180.0);
+                    let edit = ui.add_sized(
+                        [field_w, 30.0],
+                        egui::TextEdit::singleline(&mut self.url_input)
+                            .hint_text("Paste a download link"),
+                    );
+                    let enter = edit.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                    let can_add = !self.url_input.trim().is_empty();
+                    let add = egui::Button::new(egui::RichText::new("Add").color(p.bg))
+                        .fill(p.accent)
+                        .min_size(Vec2::new(62.0, 30.0));
+                    if ui.add_enabled(can_add, add).clicked() || (enter && can_add) {
+                        self.submit_url();
+                    }
+                    let more = egui::Button::new("Paste list").min_size(Vec2::new(96.0, 30.0));
+                    if ui.add(more).clicked() {
+                        self.batch_dialog = Some(BatchDialog::default());
+                    }
+                });
+                ui.add_space(9.0);
+            });
+    }
 }
 
 impl eframe::App for LotusApp {
@@ -195,53 +286,52 @@ impl eframe::App for LotusApp {
         }
 
         let p = theme::palette(self.settings.theme_mode);
+        self.sidebar(ctx, &p);
+        self.toolbar(ctx, &p);
 
-        SidePanel::left("nav")
-            .resizable(true)
-            .default_width(NAV_WIDTH)
-            .frame(
-                egui::Frame::side_top_panel(&ctx.style())
-                    .fill(p.bg)
-                    .stroke(Stroke::new(1.0_f32, p.border)),
-            )
-            .show(ctx, |ui| {
-                ui.add_space(4.0);
-                let (_, logo_rect) = ui.allocate_space(Vec2::new(ui.available_width(), 96.0));
-                sidebar::draw_logo(ui, logo_rect, &p);
-                ui.add_space(4.0);
-
-                if sidebar::nav_pill(ui, "Home", self.nav == Nav::Home, &p) {
-                    self.nav = Nav::Home;
+        CentralPanel::default().show(ctx, |ui| match self.nav {
+            Nav::Home => {
+                ui.add_space(16.0);
+                ui.heading("Home");
+                ui.label(
+                    egui::RichText::new("Everything you are downloading, in one list.")
+                        .color(p.muted)
+                        .size(12.5),
+                );
+                ui.add_space(16.0);
+                queue_view::stats_row(ui, &self.queue, &p);
+                ui.add_space(18.0);
+                let filter = self.filter;
+                queue_view::list_panel(
+                    ui,
+                    &mut self.queue,
+                    filter,
+                    &mut self.controls,
+                    &self.event_tx,
+                    &p,
+                );
+            }
+            Nav::Queue => {
+                ui.add_space(16.0);
+                ui.heading("Queue");
+                ui.add_space(12.0);
+                if queue_view::filters_row(ui, &self.queue, &mut self.filter, &p) {
+                    self.queue.retain(|job| job.status != JobStatus::Done);
+                    if let Err(err) = queue::save(&self.queue) {
+                        eprintln!("lotusdm: queue save failed: {err}");
+                    }
                 }
-                if sidebar::nav_pill(ui, "Queue", self.nav == Nav::Queue, &p) {
-                    self.nav = Nav::Queue;
-                }
-                if sidebar::nav_pill(ui, "Settings", self.nav == Nav::Settings, &p) {
-                    self.nav = Nav::Settings;
-                }
-
-                ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
-                    sidebar::status_row(ui, &p);
-                });
-            });
-
-        let nav = self.nav;
-        CentralPanel::default().show(ctx, |ui| match nav {
-            Nav::Queue => queue_view::queue_panel(
-                ui,
-                &mut self.queue,
-                &mut self.add_dialog,
-                &mut self.batch_dialog,
-                &mut self.controls,
-                &self.event_tx,
-                &p,
-            ),
-            Nav::Home => placeholder(
-                ui,
-                "Home",
-                "Nothing here yet. New downloads will show up here.",
-                &p,
-            ),
+                ui.add_space(12.0);
+                let filter = self.filter;
+                queue_view::list_panel(
+                    ui,
+                    &mut self.queue,
+                    filter,
+                    &mut self.controls,
+                    &self.event_tx,
+                    &p,
+                );
+            }
             Nav::Settings => settings_view::settings_panel(ui, &mut self.settings, &p),
         });
 
@@ -278,11 +368,4 @@ impl eframe::App for LotusApp {
             }
         }
     }
-}
-
-fn placeholder(ui: &mut egui::Ui, title: &str, text: &str, p: &Palette) {
-    ui.add_space(8.0);
-    ui.heading(title);
-    ui.add_space(2.0);
-    ui.label(egui::RichText::new(text).color(p.muted));
 }
