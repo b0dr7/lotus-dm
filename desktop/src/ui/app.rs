@@ -16,7 +16,7 @@ use crate::ui::lifecycle;
 use crate::ui::queue_view::{self, Filter};
 use crate::ui::settings_view;
 use crate::ui::sidebar;
-use crate::ui::theme::{self, Palette};
+use crate::ui::theme::{self, Palette, ThemeMode};
 
 const NAV_WIDTH: f32 = 214.0;
 
@@ -36,6 +36,7 @@ pub struct LotusApp {
     auto_armed: bool,
     bridge_rx: Receiver<bridge::AddRequest>,
     bridge_port: Option<u16>,
+    light_theme: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -50,6 +51,7 @@ impl LotusApp {
         theme::install_system_fonts(&cc.egui_ctx);
         let settings = settings::load();
         theme::apply(settings.theme_mode, &cc.egui_ctx);
+        let light_theme = theme::is_light(settings.theme_mode);
         engine::set_global_limit_kbps(settings.global_speed_limit_kbps);
 
         let mut queue = queue::load();
@@ -88,6 +90,7 @@ impl LotusApp {
             auto_armed: true,
             bridge_rx,
             bridge_port,
+            light_theme,
         }
     }
 
@@ -315,9 +318,19 @@ impl eframe::App for LotusApp {
         if ctx.input_mut(|input| input.consume_key(egui::Modifiers::COMMAND, egui::Key::T)) {
             self.settings.theme_mode = self.settings.theme_mode.next();
             theme::apply(self.settings.theme_mode, ctx);
+            self.light_theme = theme::is_light(self.settings.theme_mode);
             if let Err(err) = settings::save(&self.settings) {
                 eprintln!("lotusdm: settings save failed: {err}");
             }
+        }
+
+        // System mode follows Windows while the window stays open.
+        if theme::is_light(self.settings.theme_mode) != self.light_theme {
+            self.light_theme = theme::is_light(self.settings.theme_mode);
+            theme::apply(self.settings.theme_mode, ctx);
+        }
+        if self.settings.theme_mode == ThemeMode::System {
+            ctx.request_repaint_after(std::time::Duration::from_secs(15));
         }
 
         let p = theme::palette(self.settings.theme_mode);

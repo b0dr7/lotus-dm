@@ -1,5 +1,6 @@
 package com.b0dr7.lotusdm.ui.theme
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -9,10 +10,11 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
 /**
- * The four theme modes from the token table. Ordered as they appear in
- * Settings, so the list is stable and self-describing.
+ * The theme modes from the token table, System first: it follows the
+ * device setting and is what a fresh install starts on.
  */
 enum class ThemeMode(val label: String) {
+    SYSTEM("System"),
     DARK("Dark"),
     LIGHT("Light"),
     AMOLED("Amoled"),
@@ -93,7 +95,9 @@ private val HighContrast = LotusColors(
     isHighContrast = true,
 )
 
+@Composable
 fun lotusColors(mode: ThemeMode): LotusColors = when (mode) {
+    ThemeMode.SYSTEM -> if (isSystemInDarkTheme()) Dark else Light
     ThemeMode.DARK -> Dark
     ThemeMode.LIGHT -> Light
     ThemeMode.AMOLED -> Amoled

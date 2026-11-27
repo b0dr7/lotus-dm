@@ -1,5 +1,6 @@
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock, Mutex};
+use std::time::{Duration, Instant};
 
 use eframe::egui::{
     self, Color32, CornerRadius, FontData, FontDefinitions, FontFamily, FontId, Shadow, Stroke,
@@ -15,7 +16,9 @@ static SYSTEM_FONTS: AtomicBool = AtomicBool::new(false);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ThemeMode {
+    /// Follow the Windows light/dark setting. The default for new installs.
     #[default]
+    System,
     Dark,
     Light,
     Amoled,
@@ -25,12 +28,82 @@ pub enum ThemeMode {
 impl ThemeMode {
     pub fn next(self) -> ThemeMode {
         match self {
+            ThemeMode::System => ThemeMode::Dark,
             ThemeMode::Dark => ThemeMode::Light,
             ThemeMode::Light => ThemeMode::Amoled,
             ThemeMode::Amoled => ThemeMode::HighContrast,
-            ThemeMode::HighContrast => ThemeMode::Dark,
+            ThemeMode::HighContrast => ThemeMode::System,
         }
     }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            ThemeMode::System => "System",
+            ThemeMode::Dark => "Dark",
+            ThemeMode::Light => "Light",
+            ThemeMode::Amoled => "Amoled",
+            ThemeMode::HighContrast => "High contrast",
+        }
+    }
+}
+
+/// True when the palette in use is the light one (directly or via System).
+pub fn is_light(mode: ThemeMode) -> bool {
+    concrete(mode) == ThemeMode::Light
+}
+
+/// Turns System into the light or dark mode Windows is currently using.
+fn concrete(mode: ThemeMode) -> ThemeMode {
+    match mode {
+        ThemeMode::System => {
+            if system_prefers_light() {
+                ThemeMode::Light
+            } else {
+                ThemeMode::Dark
+            }
+        }
+        other => other,
+    }
+}
+
+/// Cached for a few seconds so a per-frame palette() call never spawns a
+/// process more than once in a while.
+fn system_prefers_light() -> bool {
+    static CACHE: LazyLock<Mutex<(Option<Instant>, bool)>> =
+        LazyLock::new(|| Mutex::new((None, false)));
+    let mut guard = CACHE.lock().unwrap_or_else(|err| err.into_inner());
+    let fresh = guard
+        .0
+        .map(|at| at.elapsed() < Duration::from_secs(30))
+        .unwrap_or(false);
+    if fresh {
+        return guard.1;
+    }
+    let value = detect_system_light();
+    *guard = (Some(Instant::now()), value);
+    value
+}
+
+#[cfg(windows)]
+fn detect_system_light() -> bool {
+    use std::process::Command;
+    let output = Command::new("reg")
+        .args([
+            "query",
+            r"HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
+            "/v",
+            "AppsUseLightTheme",
+        ])
+        .output();
+    match output {
+        Ok(out) => String::from_utf8_lossy(&out.stdout).contains("0x1"),
+        Err(_) => false,
+    }
+}
+
+#[cfg(not(windows))]
+fn detect_system_light() -> bool {
+    false
 }
 
 #[derive(Clone, Copy)]
@@ -53,17 +126,7 @@ fn tint(color: Color32, alpha: u8) -> Color32 {
 }
 
 pub fn palette(mode: ThemeMode) -> Palette {
-    let (bg, surface, surface2, accent, text, muted, hover, border) = match mode {
-        ThemeMode::Dark => (
-            rgb(0x0D, 0x0D, 0x0F),
-            rgb(0x16, 0x16, 0x1A),
-            rgb(0x1E, 0x1E, 0x24),
-            rgb(0xF2, 0xC1, 0x4E),
-            rgb(0xEF, 0xEF, 0xEA),
-            rgb(0x8A, 0x8A, 0x93),
-            rgb(0xFF, 0xD3, 0x4D),
-            Color32::from_white_alpha(26),
-        ),
+    let (bg, surface, surface2, accent, text, muted, hover, border) = match concrete(mode) {
         ThemeMode::Light => (
             rgb(0xF7, 0xF4, 0xEC),
             rgb(0xFF, 0xFF, 0xFF),
@@ -73,6 +136,16 @@ pub fn palette(mode: ThemeMode) -> Palette {
             rgb(0x6B, 0x6B, 0x70),
             rgb(0xCA, 0x8A, 0x04),
             Color32::from_black_alpha(26),
+        ),
+        ThemeMode::Dark => (
+            rgb(0x0D, 0x0D, 0x0F),
+            rgb(0x16, 0x16, 0x1A),
+            rgb(0x1E, 0x1E, 0x24),
+            rgb(0xF2, 0xC1, 0x4E),
+            rgb(0xEF, 0xEF, 0xEA),
+            rgb(0x8A, 0x8A, 0x93),
+            rgb(0xFF, 0xD3, 0x4D),
+            Color32::from_white_alpha(26),
         ),
         ThemeMode::Amoled => (
             rgb(0x00, 0x00, 0x00),
@@ -94,6 +167,8 @@ pub fn palette(mode: ThemeMode) -> Palette {
             rgb(0xFF, 0xE1, 0x4D),
             Color32::WHITE,
         ),
+        // concrete() already replaced System with Light or Dark.
+        ThemeMode::System => unreachable!(),
     };
 
     Palette {
@@ -152,6 +227,7 @@ pub fn install_system_fonts(ctx: &egui::Context) {
 }
 
 pub fn apply(mode: ThemeMode, ctx: &egui::Context) {
+    let mode = concrete(mode);
     let p = palette(mode);
 
     let mut style = (*ctx.style()).clone();

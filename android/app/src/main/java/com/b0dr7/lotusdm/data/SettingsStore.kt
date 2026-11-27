@@ -13,8 +13,8 @@ class SettingsStore(context: Context) {
 
     var themeMode: ThemeMode
         get() {
-            val raw = prefs.getString(KEY_THEME, ThemeMode.DARK.name)
-            return ThemeMode.values().firstOrNull { it.name == raw } ?: ThemeMode.DARK
+            val raw = prefs.getString(KEY_THEME, ThemeMode.SYSTEM.name)
+            return ThemeMode.values().firstOrNull { it.name == raw } ?: ThemeMode.SYSTEM
         }
         set(value) {
             prefs.edit().putString(KEY_THEME, value.name).apply()
