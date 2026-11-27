@@ -311,6 +311,18 @@ impl eframe::App for LotusApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.drain_bridge();
         self.drain_events();
+
+        // Auto-shutdown: once every job is finished (done or failed) and the
+        // setting is on, close the window.
+        if self.settings.auto_shutdown && !self.queue.is_empty() {
+            let all_done = self
+                .queue
+                .iter()
+                .all(|job| matches!(job.status, JobStatus::Done | JobStatus::Failed));
+            if all_done {
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            }
+        }
         lifecycle::pump_retries(
             &mut self.queue,
             &mut self.controls,

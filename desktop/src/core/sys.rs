@@ -97,3 +97,85 @@ fn system_time() -> (u8, u8) {
 pub fn local_hm() -> (u8, u8) {
     system_time()
 }
+
+/// Add or remove the per-user Run entry so Lotus starts with Windows.
+/// Returns true on success. No-op (returns false) on non-Windows hosts.
+pub fn set_autostart(enabled: bool) -> bool {
+    #[cfg(windows)]
+    {
+        use std::ffi::OsStr;
+        use std::os::windows::ffi::OsStrExt;
+        #[link(name = "advapi32")]
+        extern "system" {
+            fn RegOpenKeyExW(
+                hKey: isize,
+                lpSubKey: *const u16,
+                ulOptions: u32,
+                samDesired: u32,
+                phkResult: *mut isize,
+            ) -> i32;
+            fn RegSetValueExW(
+                hKey: isize,
+                lpValueName: *const u16,
+                reserved: u32,
+                dwType: u32,
+                lpData: *const u8,
+                cbData: u32,
+            ) -> i32;
+            fn RegDeleteValueW(hKey: isize, lpValueName: *const u16) -> i32;
+            fn RegCloseKey(hKey: isize) -> i32;
+        }
+        const HKEY_CURRENT_USER: isize = 0x80000001u32 as isize;
+        const KEY_SET_VALUE: u32 = 0x0002;
+        const REG_SZ: u32 = 1;
+        let subkey: Vec<u16> = OsStr::new("Software\Microsoft\Windows\CurrentVersion\Run")
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+        let value_name: Vec<u16> = OsStr::new("LotusDM")
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+        unsafe {
+            let mut hkey: isize = 0;
+            if RegOpenKeyExW(
+                HKEY_CURRENT_USER,
+                subkey.as_ptr(),
+                0,
+                KEY_SET_VALUE,
+                &mut hkey,
+            ) != 0
+            {
+                return false;
+            }
+            let ok = if enabled {
+                let exe = match std::env::current_exe() {
+                    Ok(p) => p,
+                    Err(_) => {
+                        RegCloseKey(hkey);
+                        return false;
+                    }
+                };
+                let cmd = format!("\"{}\"", exe.display());
+                let bytes: Vec<u8> = cmd.encode_utf16().flat_map(|c| c.to_le_bytes()).collect();
+                RegSetValueExW(
+                    hkey,
+                    value_name.as_ptr(),
+                    0,
+                    REG_SZ,
+                    bytes.as_ptr(),
+                    bytes.len() as u32,
+                ) == 0
+            } else {
+                RegDeleteValueW(hkey, value_name.as_ptr()) == 0 || true
+            };
+            RegCloseKey(hkey);
+            ok
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = enabled;
+        false
+    }
+}
