@@ -60,7 +60,10 @@ body {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 16px; line-height: 1.5;
   -webkit-font-smoothing: antialiased; overflow-x: hidden;
+  /* footer stays pinned to the bottom on short pages */
+  display: flex; flex-direction: column; min-height: 100svh;
 }
+main { flex: 1 0 auto; }
 h1, h2, h3 { margin: 0; font-weight: 400; color: var(--text); letter-spacing: -0.01em; }
 p { margin: 0; }
 a { color: var(--accent); text-decoration: none; }
@@ -77,8 +80,16 @@ img, svg { max-width: 100%; }
   text-align: center;
   padding: clamp(72px, 12vh, 120px) var(--gutter) clamp(48px, 8vh, 88px);
 }
-.mark { display: inline-flex; align-items: center; gap: clamp(10px, 1.6vw, 16px); color: var(--text); }
+.mark {
+  display: inline-flex; align-items: center; gap: clamp(10px, 1.6vw, 16px);
+  color: var(--text);
+  -webkit-user-drag: none; user-select: none;
+}
 .mark:hover { color: var(--text); }
+.mark img, .mark svg, .mark span { -webkit-user-drag: none; }
+.mark--compact { gap: 8px; margin-bottom: 28px; }
+.mark--compact .mark-ico { width: 26px; height: 26px; }
+.mark--compact .mark-txt { font-size: 19px; letter-spacing: -0.02em; }
 .mark-ico {
   width: clamp(40px, 6vw, 64px); height: clamp(40px, 6vw, 64px);
   background: var(--accent);
@@ -164,6 +175,7 @@ img, svg { max-width: 100%; }
 
 /* ---------- footer ---------- */
 .site-footer {
+  flex: 0 0 auto;
   border-top: 1px solid var(--border);
   display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
   gap: 2px; padding: 8px var(--gutter);
