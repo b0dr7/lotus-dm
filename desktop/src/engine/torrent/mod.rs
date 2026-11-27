@@ -31,31 +31,6 @@ pub enum EncryptionMode {
 }
 
 impl EncryptionMode {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            EncryptionMode::Disabled => "disabled",
-            EncryptionMode::Enabled => "enabled",
-            EncryptionMode::Forced => "forced",
-        }
-    }
-
-    pub fn parse(value: &str) -> Option<Self> {
-        match value.trim().to_ascii_lowercase().as_str() {
-            "disabled" => Some(EncryptionMode::Disabled),
-            "enabled" => Some(EncryptionMode::Enabled),
-            "forced" => Some(EncryptionMode::Forced),
-            _ => None,
-        }
-    }
-
-    /// True when this build can actually encrypt peer traffic for this mode.
-    pub fn is_available(self) -> bool {
-        match self {
-            EncryptionMode::Disabled => true,
-            EncryptionMode::Enabled | EncryptionMode::Forced => MSE_SUPPORTED,
-        }
-    }
-
     fn index(self) -> u8 {
         match self {
             EncryptionMode::Disabled => 0,
@@ -126,10 +101,8 @@ mod tests {
             EncryptionMode::Enabled,
             EncryptionMode::Forced,
         ] {
-            assert_eq!(EncryptionMode::parse(mode.as_str()), Some(mode));
             assert_eq!(EncryptionMode::from_index(mode.index()), mode);
         }
-        assert_eq!(EncryptionMode::parse("bogus"), None);
     }
 
     #[test]
