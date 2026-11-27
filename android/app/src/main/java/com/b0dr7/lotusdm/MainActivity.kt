@@ -21,14 +21,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val store = SettingsStore(applicationContext)
-        val engine = DownloadEngine.get(applicationContext)
-        engine.speedLimit = store.speedLimitKb * 1024L
+        applySettings(store, refreshNetwork = true)
 
         askForNotifications()
 
         setContent {
             var mode by remember { mutableStateOf(store.themeMode) }
-            var speedLimitKb by remember { mutableStateOf(store.speedLimitKb) }
 
             LotusTheme(mode = mode) {
                 LotusApp(
@@ -37,16 +35,20 @@ class MainActivity : ComponentActivity() {
                         mode = next
                         store.themeMode = next
                     },
-                    speedLimitKb = speedLimitKb,
-                    onSpeedLimitChange = { kb: Int ->
-                        val clean = kb.coerceAtLeast(0)
-                        speedLimitKb = clean
-                        store.speedLimitKb = clean
-                        engine.speedLimit = clean * 1024L
-                    },
+                    store = store,
+                    onSettingsChanged = { applySettings(store, refreshNetwork = true) },
                 )
             }
         }
+    }
+
+    /** Pushes the stored settings into the running engine. */
+    private fun applySettings(store: SettingsStore, refreshNetwork: Boolean) {
+        val engine = DownloadEngine.get(applicationContext)
+        engine.speedLimit = store.effectiveLimitKb * 1024L
+        engine.wifiOnly = store.wifiOnly
+        engine.maxConcurrent = store.maxConcurrent
+        if (refreshNetwork) engine.refreshNetwork()
     }
 
     /** Android 13+ needs an explicit grant before the progress notification shows. */

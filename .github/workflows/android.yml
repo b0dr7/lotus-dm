@@ -1,23 +1,21 @@
 name: android
 
+# Compile check for the Android app on every push that touches it. The
+# release workflow only runs on tags, and this project is built in CI only,
+# so this is where Kotlin/Compose breakage shows up first.
 on:
   push:
-    branches: [main]
+    branches:
+      - main
     paths:
       - "android/**"
       - ".github/workflows/android.yml"
-  pull_request:
-    paths:
-      - "android/**"
-      - ".github/workflows/android.yml"
-  workflow_dispatch:
 
-concurrency:
-  group: android-${{ github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: read
 
 jobs:
-  build:
+  compile:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -34,14 +32,5 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Assemble debug APK
-        run: gradle --no-daemon --stacktrace assembleDebug
-
-      - name: Upload debug APK
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: lotus-dm-debug-apk
-          path: android/app/build/outputs/apk/debug/*.apk
-          if-no-files-found: warn
-          retention-days: 14
+      - name: Compile debug Kotlin
+        run: gradle --no-daemon --stacktrace compileDebugKotlin

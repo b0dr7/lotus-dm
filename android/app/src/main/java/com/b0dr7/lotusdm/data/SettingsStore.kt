@@ -3,6 +3,18 @@ package com.b0dr7.lotusdm.data
 import android.content.Context
 import com.b0dr7.lotusdm.ui.theme.ThemeMode
 
+/** FDM-style traffic modes. Custom keeps whatever limit the user typed. */
+enum class TrafficMode(val label: String, val kbps: Int) {
+    LOW("Low", 256),
+    MEDIUM("Medium", 1024),
+    HIGH("High", 4096),
+    UNLIMITED("Unlimited", 0),
+    CUSTOM("Custom", -1),
+    ;
+
+    val isCustom: Boolean get() = this == CUSTOM
+}
+
 /**
  * Tiny SharedPreferences wrapper. No network, no accounts - the app keeps
  * its preferences on the device.
@@ -20,16 +32,54 @@ class SettingsStore(context: Context) {
             prefs.edit().putString(KEY_THEME, value.name).apply()
         }
 
-    /** Global bandwidth cap in KB/s, 0 = unlimited. */
+    /** Bandwidth cap in KB/s used by the Custom mode, 0 = unlimited. */
     var speedLimitKb: Int
         get() = prefs.getInt(KEY_SPEED, 0)
         set(value) {
             prefs.edit().putInt(KEY_SPEED, value.coerceAtLeast(0)).apply()
         }
 
+    var trafficMode: TrafficMode
+        get() {
+            val raw = prefs.getString(KEY_MODE, TrafficMode.CUSTOM.name)
+            return TrafficMode.entries.firstOrNull { it.name == raw } ?: TrafficMode.CUSTOM
+        }
+        set(value) {
+            prefs.edit().putString(KEY_MODE, value.name).apply()
+        }
+
+    /** The limit the engine should use, in KB/s (0 = unlimited). */
+    val effectiveLimitKb: Int
+        get() = trafficMode.let { if (it.isCustom) speedLimitKb else it.kbps }
+
+    /** Pause everything unless the phone is on Wi-Fi. */
+    var wifiOnly: Boolean
+        get() = prefs.getBoolean(KEY_WIFI_ONLY, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_WIFI_ONLY, value).apply()
+        }
+
+    /** One notification per finished/failed download. */
+    var notifyResults: Boolean
+        get() = prefs.getBoolean(KEY_NOTIFY, true)
+        set(value) {
+            prefs.edit().putBoolean(KEY_NOTIFY, value).apply()
+        }
+
+    /** How many downloads may run at once; the rest wait in priority order. */
+    var maxConcurrent: Int
+        get() = prefs.getInt(KEY_CONCURRENT, 3).coerceIn(1, 8)
+        set(value) {
+            prefs.edit().putInt(KEY_CONCURRENT, value.coerceIn(1, 8)).apply()
+        }
+
     private companion object {
         const val PREFS = "lotus-settings"
         const val KEY_THEME = "theme_mode"
         const val KEY_SPEED = "speed_limit_kb"
+        const val KEY_MODE = "traffic_mode"
+        const val KEY_WIFI_ONLY = "wifi_only"
+        const val KEY_NOTIFY = "notify_results"
+        const val KEY_CONCURRENT = "max_concurrent"
     }
 }
