@@ -4,8 +4,9 @@
 //! only talks to this module: actions come out of `poll()` once per frame and
 //! notifications go in through `notify()`.
 
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{LazyLock, Mutex, VecDeque};
+use std::sync::{LazyLock, Mutex};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TrayAction {
