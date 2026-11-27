@@ -20,8 +20,16 @@ class SettingsStore(context: Context) {
             prefs.edit().putString(KEY_THEME, value.name).apply()
         }
 
+    /** Global bandwidth cap in KB/s, 0 = unlimited. */
+    var speedLimitKb: Int
+        get() = prefs.getInt(KEY_SPEED, 0)
+        set(value) {
+            prefs.edit().putInt(KEY_SPEED, value.coerceAtLeast(0)).apply()
+        }
+
     private companion object {
         const val PREFS = "lotus-settings"
         const val KEY_THEME = "theme_mode"
+        const val KEY_SPEED = "speed_limit_kb"
     }
 }

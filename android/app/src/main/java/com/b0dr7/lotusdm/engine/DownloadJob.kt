@@ -23,6 +23,7 @@ data class DownloadJob(
     val error: String?,
     val uri: String? = null,
     val mime: String = "application/octet-stream",
+    val limit: Long = 0L,
 ) {
     val progress: Float
         get() = if (total > 0L) (downloaded.toFloat() / total.toFloat()).coerceIn(0f, 1f) else 0f

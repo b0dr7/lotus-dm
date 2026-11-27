@@ -35,7 +35,12 @@ private val tabs = listOf(
 )
 
 @Composable
-fun LotusApp(mode: ThemeMode, onModeChange: (ThemeMode) -> Unit) {
+fun LotusApp(
+    mode: ThemeMode,
+    onModeChange: (ThemeMode) -> Unit,
+    speedLimitKb: Int,
+    onSpeedLimitChange: (Int) -> Unit,
+) {
     val colors = LocalLotusColors.current
     var selected by rememberSaveable { mutableIntStateOf(0) }
 
@@ -75,7 +80,12 @@ fun LotusApp(mode: ThemeMode, onModeChange: (ThemeMode) -> Unit) {
             when (selected) {
                 0 -> HomeScreen()
                 1 -> QueueScreen()
-                else -> SettingsScreen(mode = mode, onModeChange = onModeChange)
+                else -> SettingsScreen(
+                    mode = mode,
+                    onModeChange = onModeChange,
+                    speedLimitKb = speedLimitKb,
+                    onSpeedLimitChange = onSpeedLimitChange,
+                )
             }
         }
     }
