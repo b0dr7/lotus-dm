@@ -11,7 +11,7 @@ use crate::engine::{Control, Event};
 use crate::ui::lifecycle;
 use crate::ui::theme::Palette;
 
-const ROW_HEIGHT: f32 = 88.0;
+const ROW_HEIGHT: f32 = 86.0;
 const PAD: f32 = 12.0;
 const BUTTON_H: f32 = 24.0;
 const BUTTON_GAP: f32 = 8.0;
@@ -84,12 +84,28 @@ pub fn row(
             FontId::proportional(12.0),
             p.muted,
         );
-        let right_text = if job.status == JobStatus::Running {
-            fmt_speed(job.speed_bps)
-        } else if job.no_resume {
-            "no-resume".to_string()
-        } else {
-            "--".to_string()
+        let right_text = match job.status {
+            JobStatus::Running => {
+                format!(
+                    "{}  ·  {}",
+                    fmt_size(job.received_bytes),
+                    fmt_speed(job.speed_bps)
+                )
+            }
+            JobStatus::Paused | JobStatus::Queued if job.total_bytes > 0 => {
+                format!(
+                    "{}  ·  {}",
+                    fmt_size(job.received_bytes),
+                    fmt_size(job.total_bytes)
+                )
+            }
+            JobStatus::Done => fmt_size(if job.total_bytes > 0 {
+                job.total_bytes
+            } else {
+                job.received_bytes
+            }),
+            _ if job.no_resume => "no-resume".to_string(),
+            _ => "--".to_string(),
         };
         painter.text(
             Pos2::new(right, meta_y),
@@ -190,7 +206,7 @@ fn draw_progress_bar(
     };
     let bar_right = bar_right.max(left + 40.0);
     let bar = Rect::from_min_max(
-        Pos2::new(left, band_y + 8.0),
+        Pos2::new(left, band_y + 10.0),
         Pos2::new(bar_right, band_y + 16.0),
     );
 
@@ -276,6 +292,22 @@ fn chip_colors(status: JobStatus, p: &Palette, error_color: Color32) -> (Color32
             error_color,
             Color32::from_rgba_unmultiplied(error_color.r(), error_color.g(), error_color.b(), 45),
         ),
+    }
+}
+
+fn fmt_size(bytes: u64) -> String {
+    const KB: f64 = 1024.0;
+    const MB: f64 = KB * 1024.0;
+    const GB: f64 = MB * 1024.0;
+    let b = bytes as f64;
+    if b < KB {
+        format!("{bytes} B")
+    } else if b < MB {
+        format!("{:.0} KB", b / KB)
+    } else if b < GB {
+        format!("{:.1} MB", b / MB)
+    } else {
+        format!("{:.2} GB", b / GB)
     }
 }
 

@@ -1,4 +1,4 @@
-use eframe::egui::{self, Align2, Color32, FontId, Pos2, Sense, Stroke, Vec2};
+use eframe::egui::{self, Align2, Color32, FontId, Pos2, RichText, Sense, Stroke, Vec2};
 
 use crate::ui::theme::Palette;
 
@@ -31,6 +31,23 @@ pub fn nav_pill(ui: &mut egui::Ui, label: &str, selected: bool, p: &Palette) -> 
         color,
     );
     response.clicked()
+}
+
+pub fn wordmark(ui: &mut egui::Ui, p: &Palette) {
+    ui.vertical_centered(|ui| {
+        ui.label(RichText::new("LOTUS").size(13.0).strong().color(p.text));
+        ui.label(RichText::new("DOWNLOAD MANAGER").size(8.5).color(p.muted));
+    });
+}
+
+pub fn version_row(ui: &mut egui::Ui, p: &Palette) {
+    ui.vertical_centered(|ui| {
+        ui.label(
+            RichText::new(concat!("v", env!("CARGO_PKG_VERSION")))
+                .size(10.5)
+                .color(p.muted),
+        );
+    });
 }
 
 pub fn status_row(ui: &mut egui::Ui, p: &Palette) {

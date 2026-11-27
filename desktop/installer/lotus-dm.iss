@@ -31,6 +31,7 @@ DefaultGroupName=Lotus Download Manager
 DisableProgramGroupPage=yes
 UninstallDisplayName=Lotus Download Manager
 UninstallDisplayIcon={app}\LotusDM.exe
+SetupIconFile=..\assets\lotus.ico
 OutputDir=..\dist
 OutputBaseFilename=LotusDM-windows-{#OutName}
 Compression=lzma2/max
