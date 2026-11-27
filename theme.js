@@ -123,6 +123,7 @@
     amoledLbl.appendChild(el("span", "opt-txt", "Amoled"));
     amoledLbl.appendChild(el("span", "sw"));
     amoledIn.addEventListener("change", function () {
+      if (state.base !== "dark") { amoledIn.checked = false; return; }
       state.amoled = amoledIn.checked;
       if (amoledIn.checked) state.hc = false;
       apply(true);
