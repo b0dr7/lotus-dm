@@ -11,6 +11,11 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // jlibtorrent (libtorrent bindings) is published only here.
+        maven {
+            url = uri("https://dl.frostwire.com/maven")
+            content { includeGroup("com.frostwire") }
+        }
     }
 }
 

@@ -10,7 +10,8 @@ android {
 
     defaultConfig {
         applicationId = "com.b0dr7.lotusdm"
-        minSdk = 23
+        // jlibtorrent (the torrent engine) requires API 26.
+        minSdk = 26
         targetSdk = 34
         versionCode = 1
         versionName = "0.1.0"
@@ -56,6 +57,10 @@ android {
 }
 
 dependencies {
+    // libtorrent bindings: java classes, native code for every ABI and the
+    // R8 keep rules, in one AAR.
+    implementation("com.frostwire:jlibtorrent-android:2.1.2.1@aar")
+
     implementation(platform("androidx.compose:compose-bom:2024.09.00"))
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.activity:activity-compose:1.9.2")
