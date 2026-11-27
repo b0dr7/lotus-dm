@@ -9,6 +9,7 @@ use crate::core::queue::DownloadJob;
 pub mod job;
 pub mod seg_thread;
 pub mod segmented;
+pub mod torrent;
 pub mod worker;
 
 use job::RateLimiter;
@@ -62,8 +63,15 @@ pub enum Event {
     },
 }
 
+/// Hands a queued job to the engine that understands its URL: magnet links,
+/// `.torrent` links and `.torrent` files go to the torrent engine, everything
+/// else to the HTTP engine.
 pub fn spawn_download(job: DownloadJob, control: Arc<Control>, tx: Sender<Event>) {
-    thread::spawn(move || worker::run(job, control, tx, 0));
+    if torrent::is_torrent(&job.url) {
+        thread::spawn(move || torrent::worker::run(job, control, tx));
+    } else {
+        thread::spawn(move || worker::run(job, control, tx, 0));
+    }
 }
 
 /// Process-wide cap shared by every segment of every running download.
