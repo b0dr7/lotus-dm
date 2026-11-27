@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>(function(){var t=null;try{t=localStorage.getItem("lotus-theme-dm")}catch(e){}
+if(t!=="dark"&&t!=="light"&&t!=="amoled"&&t!=="hc"){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches)?"light":"dark"}
+document.documentElement.setAttribute("data-theme",t)})();</script>
+<title>Lotus Download Manager</title>
+<meta name="description" content="Fast, free download manager for Windows and Android. Multi-segment, resumable, zero telemetry.">
+<link rel="icon" href="assets/lotus.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="./"><span class="logo" aria-hidden="true"></span><span>Lotus Download Manager</span></a>
+  <nav class="nav" aria-label="Main">
+    <a href="./" aria-current="page">Home</a>
+    <a href="terms/">Terms</a>
+    <a href="privacy/">Privacy</a>
+  </nav>
+  <div class="theme-picker" id="theme-picker" role="group" aria-label="Color theme"></div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <div class="logo-lg" role="img" aria-label="Lotus logo"></div>
+    <h1>Lotus Download Manager</h1>
+    <p class="lede">Fast, free downloads for Windows and Android - multi-segment, resumable, and completely telemetry-free.</p>
+    <div class="downloads">
+      <a class="btn btn-primary" href="https://github.com/b0dr7/lotus-dm/releases/latest/download/LotusDM-windows-x64.exe">Windows 64-bit</a>
+      <a class="btn" href="https://github.com/b0dr7/lotus-dm/releases/latest/download/LotusDM-windows-x86.exe">Windows 32-bit</a>
+      <a class="btn" href="https://github.com/b0dr7/lotus-dm/releases/latest/download/LotusDM-android-universal.apk">Android (universal)</a>
+    </div>
+    <details class="abi">
+      <summary>Other Android devices</summary>
+      <ul>
+        <li><a href="https://github.com/b0dr7/lotus-dm/releases/latest/download/LotusDM-android-arm64-v8a.apk">arm64-v8a</a> - modern phones</li>
+        <li><a href="https://github.com/b0dr7/lotus-dm/releases/latest/download/LotusDM-android-armeabi-v7a.apk">armeabi-v7a</a> - older or weaker phones</li>
+        <li><a href="https://github.com/b0dr7/lotus-dm/releases/latest/download/LotusDM-android-x86_64.apk">x86_64</a> - emulators and Chromebooks</li>
+      </ul>
+    </details>
+  </section>
+
+  <section aria-labelledby="features-h">
+    <h2 id="features-h">Features</h2>
+    <div class="grid cols-3">
+      <div class="card">
+        <h3>Multi-segment</h3>
+        <p>Eight parallel connections per file for maximum speed.</p>
+      </div>
+      <div class="card">
+        <h3>Resume</h3>
+        <p>Pause, resume, and pick up after a restart exactly where you stopped.</p>
+      </div>
+      <div class="card">
+        <h3>Speed limits</h3>
+        <p>Per-download and global throttles when you need the bandwidth back.</p>
+      </div>
+      <div class="card">
+        <h3>Clipboard monitor</h3>
+        <p>Catch copied links automatically - optional, off by default.</p>
+      </div>
+      <div class="card">
+        <h3>Browser integration</h3>
+        <p>Send downloads from Firefox and Chrome straight to the queue.</p>
+      </div>
+      <div class="card">
+        <h3>No tracking</h3>
+        <p>Zero telemetry, zero ads, zero webviews. Entirely free.</p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="install-h">
+    <h2 id="install-h">Install</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Windows</h3>
+        <ol class="steps">
+          <li>Download the 64-bit build (or 32-bit for older PCs).</li>
+          <li>Run the downloaded .exe file.</li>
+          <li>Paste a URL - your first download starts.</li>
+        </ol>
+      </div>
+      <div class="card">
+        <h3>Android</h3>
+        <ol class="steps">
+          <li>Download the universal APK (or your device's build under Other Android devices).</li>
+          <li>Allow installs from your browser when prompted.</li>
+          <li>Open the downloaded APK and confirm the install.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <a href="terms/">Terms</a> | <a href="privacy/">Privacy</a>
+</footer>
+<script src="theme.js"></script>
+</body>
+</html>
