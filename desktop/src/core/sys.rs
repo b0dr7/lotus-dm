@@ -179,3 +179,44 @@ pub fn set_autostart(enabled: bool) -> bool {
         false
     }
 }
+
+/// Show or hide the main window. The window is found by title so this works
+/// no matter which thread asks (egui only tracks visibility itself, which is
+/// unreliable once the window has been hidden from under it).
+pub fn set_main_window_visible(visible: bool) {
+    #[cfg(windows)]
+    {
+        use std::ffi::OsStr;
+        use std::os::windows::ffi::OsStrExt;
+        #[link(name = "user32")]
+        extern "system" {
+            fn FindWindowW(class: *const u16, name: *const u16) -> isize;
+            fn ShowWindow(hwnd: isize, cmd: i32) -> i32;
+            fn SetForegroundWindow(hwnd: isize) -> i32;
+        }
+        const SW_HIDE: i32 = 0;
+        const SW_SHOW: i32 = 5;
+        const SW_RESTORE: i32 = 9;
+        let title: Vec<u16> = OsStr::new("Lotus Download Manager")
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+        unsafe {
+            let hwnd = FindWindowW(std::ptr::null(), title.as_ptr());
+            if hwnd == 0 {
+                return;
+            }
+            if visible {
+                ShowWindow(hwnd, SW_SHOW);
+                ShowWindow(hwnd, SW_RESTORE);
+                SetForegroundWindow(hwnd);
+            } else {
+                ShowWindow(hwnd, SW_HIDE);
+            }
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = visible;
+    }
+}

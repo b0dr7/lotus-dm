@@ -42,6 +42,12 @@ impl RetryTracker {
         self.map.remove(id);
     }
 
+    /// True while another automatic attempt is queued, so the UI can hold
+    /// back the "failed" notification until the last one is spent.
+    pub fn will_retry(&self, id: &str) -> bool {
+        self.map.get(id).is_some_and(|entry| entry.next.is_some())
+    }
+
     /// Ids whose backoff elapsed; the attempt count survives for the next
     /// failure so the chain still stops after three.
     pub fn take_due(&mut self) -> Vec<String> {

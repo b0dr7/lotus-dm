@@ -54,6 +54,9 @@ pub struct Settings {
     pub auto_shutdown: bool,
     pub launch_at_startup: bool,
     pub portable: bool,
+    pub close_to_tray: bool,
+    pub start_hidden: bool,
+    pub notifications: bool,
 }
 
 impl Default for Settings {
@@ -73,6 +76,9 @@ impl Default for Settings {
             auto_shutdown: false,
             launch_at_startup: false,
             portable: false,
+            close_to_tray: true,
+            start_hidden: false,
+            notifications: true,
         }
     }
 }
