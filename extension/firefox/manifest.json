@@ -1,14 +1,13 @@
 {
   "manifest_version": 2,
   "name": "Lotus Download Manager",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Send links from Firefox straight to the Lotus Download Manager queue.",
   "homepage_url": "https://b0dr7.github.io/lotus-dm/",
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",
     "48": "icons/icon-48.png",
-    "96": "icons/icon-96.png",
     "128": "icons/icon-128.png"
   },
   "permissions": [
@@ -33,7 +32,10 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "lotus-dm@b0dr7.github.io",
-      "strict_min_version": "109.0"
+      "strict_min_version": "109.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
     }
   }
 }

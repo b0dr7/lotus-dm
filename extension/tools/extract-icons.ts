@@ -2,7 +2,9 @@
 // extensions ship the same icon art instead of a redrawn copy.
 // Run once per icon change: bun extension/tools/extract-icons.ts
 const src = "desktop/assets/lotus.ico";
-const targets = [16, 32, 48, 96, 128];
+// Only sizes the .ico really stores: it has no 96 frame, and shipping a
+// 128 file named icon-96.png makes the stores reject the icon map.
+const targets = [16, 32, 48, 128];
 const outDirs = ["extension/firefox/icons", "extension/chromium/icons"];
 
 const data = new Uint8Array(await Bun.file(src).arrayBuffer());
@@ -18,18 +20,15 @@ for (let i = 0; i < count; i++) {
   frames.set(size, data.subarray(offset, offset + length));
 }
 
-for (const dir of outDirs) {
-  await Bun.write(`${dir}/.keep`, "");
-}
-
 for (const size of targets) {
-  // Nearest frame at or above the wanted size, so nothing is ever upscaled.
-  const available = [...frames.keys()].sort((a, b) => a - b);
-  const pick = available.find((s) => s >= size) ?? available[available.length - 1];
-  const png = frames.get(pick);
-  if (!png) continue;
+  // Exact frame only, so the file on disk is the size its name promises.
+  const png = frames.get(size);
+  if (!png) {
+    console.warn(`icon-${size}.png skipped: the .ico has no ${size}px frame`);
+    continue;
+  }
   for (const dir of outDirs) {
     await Bun.write(`${dir}/icon-${size}.png`, png);
   }
-  console.log(`icon-${size}.png <= ${pick}x${pick} frame`);
+  console.log(`icon-${size}.png <= ${size}x${size} frame`);
 }
