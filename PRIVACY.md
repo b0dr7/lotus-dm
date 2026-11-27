@@ -1,5 +1,5 @@
 # Privacy Policy - Lotus Download Manager
-Last updated: <date>. Short version: we collect nothing. There is nothing
+Last updated: November 27, 2026. Short version: we collect nothing. There is nothing
 to sell, leak, or subpoena.
 
 1. WHAT WE COLLECT: nothing. No accounts, no servers, no analytics, no
