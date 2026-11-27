@@ -6,8 +6,12 @@ use eframe::egui::{self, Align, CentralPanel, Layout, SidePanel, Stroke, Vec2};
 
 use crate::core::queue::{self, DownloadJob, JobStatus};
 use crate::core::settings::{self, Settings};
+use crate::core::sys;
 use crate::engine::{self, Control, EngineState, Event};
 use crate::ui::add_dialog::{self, AddDialog};
+use crate::ui::batch_dialog::{self, BatchDialog};
+use crate::ui::clipboard_watch::{ClipboardWatch, PromptAction};
+use crate::ui::lifecycle;
 use crate::ui::queue_view;
 use crate::ui::settings_view;
 use crate::ui::sidebar;
@@ -20,9 +24,13 @@ pub struct LotusApp {
     nav: Nav,
     queue: Vec<DownloadJob>,
     add_dialog: Option<AddDialog>,
+    batch_dialog: Option<BatchDialog>,
     controls: HashMap<String, Arc<Control>>,
     event_tx: Sender<Event>,
     event_rx: Receiver<Event>,
+    retry: lifecycle::RetryTracker,
+    watch: ClipboardWatch,
+    auto_armed: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -53,9 +61,13 @@ impl LotusApp {
             nav: Nav::Home,
             queue,
             add_dialog: None,
+            batch_dialog: None,
             controls: HashMap::new(),
             event_tx,
             event_rx,
+            retry: lifecycle::RetryTracker::default(),
+            watch: ClipboardWatch::default(),
+            auto_armed: true,
         }
     }
 
@@ -92,6 +104,11 @@ impl LotusApp {
     }
 
     fn apply_state(&mut self, id: &str, state: EngineState) {
+        match &state {
+            EngineState::Failed(_) => self.retry.on_failure(id),
+            EngineState::Done => self.retry.forget(id),
+            _ => {}
+        }
         let terminal = matches!(
             state,
             EngineState::Queued | EngineState::Done | EngineState::Failed(_)
@@ -139,11 +156,35 @@ impl LotusApp {
             }
         }
     }
+
+    fn maybe_auto_start(&mut self) {
+        if !self.settings.auto_start_enabled {
+            self.auto_armed = true;
+            return;
+        }
+        let (hour, minute) = sys::local_hm();
+        if hour == self.settings.auto_start_hour && minute == self.settings.auto_start_minute {
+            if self.auto_armed {
+                self.auto_armed = false;
+                lifecycle::start_all_queued(&mut self.queue, &mut self.controls, &self.event_tx);
+            }
+        } else {
+            self.auto_armed = true;
+        }
+    }
 }
 
 impl eframe::App for LotusApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.drain_events();
+        lifecycle::pump_retries(
+            &mut self.queue,
+            &mut self.controls,
+            &self.event_tx,
+            &mut self.retry,
+        );
+        self.maybe_auto_start();
+        self.watch.poll(ctx, self.settings.clipboard_watch);
 
         if ctx.input_mut(|input| input.consume_key(egui::Modifiers::COMMAND, egui::Key::T)) {
             self.settings.theme_mode = self.settings.theme_mode.next();
@@ -190,6 +231,7 @@ impl eframe::App for LotusApp {
                 ui,
                 &mut self.queue,
                 &mut self.add_dialog,
+                &mut self.batch_dialog,
                 &mut self.controls,
                 &self.event_tx,
                 &p,
@@ -210,6 +252,31 @@ impl eframe::App for LotusApp {
             &self.settings.default_folder,
             &p,
         );
+        batch_dialog::batch_dialog_window(
+            ctx,
+            &mut self.queue,
+            &mut self.batch_dialog,
+            &self.settings.default_folder,
+            &p,
+        );
+        if let Some(action) = self.watch.show(ctx, &p) {
+            match action {
+                PromptAction::Add => {
+                    if let Some(url) = self.watch.pending.take() {
+                        let filename = queue::derive_filename(&url);
+                        let folder = self.settings.default_folder.clone();
+                        self.queue
+                            .push(DownloadJob::new_queued(url, filename, folder));
+                        if let Err(err) = queue::save(&self.queue) {
+                            eprintln!("lotusdm: queue save failed: {err}");
+                        }
+                    }
+                }
+                PromptAction::Dismiss => {
+                    self.watch.pending = None;
+                }
+            }
+        }
     }
 }
 

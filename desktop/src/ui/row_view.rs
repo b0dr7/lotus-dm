@@ -7,7 +7,8 @@ use eframe::egui::{
 };
 
 use crate::core::queue::{host_of, DownloadJob, JobStatus};
-use crate::engine::{self, Control, Event};
+use crate::engine::{Control, Event};
+use crate::ui::lifecycle;
 use crate::ui::theme::Palette;
 
 const ROW_HEIGHT: f32 = 88.0;
@@ -221,9 +222,18 @@ fn actions_for(status: JobStatus) -> Vec<(&'static str, bool)> {
         JobStatus::Queued => vec![("Start", true)],
         JobStatus::Running => vec![("Pause", false), ("Cancel", false)],
         JobStatus::Paused => vec![("Resume", true), ("Cancel", false)],
-        JobStatus::Done => vec![],
-        JobStatus::Failed => vec![("Start", true)],
+        JobStatus::Done => vec![("Open folder", false)],
+        JobStatus::Failed => vec![("Retry", true)],
     }
+}
+
+fn open_folder(folder: &str) {
+    #[cfg(windows)]
+    let mut command = std::process::Command::new("explorer");
+    #[cfg(not(windows))]
+    let mut command = std::process::Command::new("xdg-open");
+    command.arg(folder);
+    let _ = command.spawn();
 }
 
 fn act(
@@ -233,13 +243,8 @@ fn act(
     tx: &Sender<Event>,
 ) {
     match label {
-        "Start" => {
-            if controls.contains_key(&job.id) {
-                return;
-            }
-            let control = Arc::new(Control::default());
-            controls.insert(job.id.clone(), control.clone());
-            engine::spawn_download(job.clone(), control, tx.clone());
+        "Start" | "Retry" => {
+            lifecycle::spawn_job(job, controls, tx);
         }
         "Pause" => {
             if let Some(control) = controls.get(&job.id) {
@@ -256,6 +261,7 @@ fn act(
                 control.request_cancel();
             }
         }
+        "Open folder" => open_folder(&job.folder),
         _ => {}
     }
 }
