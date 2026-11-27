@@ -1,9 +1,12 @@
 /* Lotus Download Manager website.
+   Design language: calm, centered, restrained. Neutral surfaces, 1px soft
+   borders, accent only where it acts (links, primary button, current pill).
+   Centered single column, generous vertical rhythm, tight heading tracking,
+   muted secondary text, small footer. Original code and tokens.
    4 theme token sets, mobile-first, breakpoints 640/960, fluid clamp() type,
-   wrapped pill nav, 44px tap targets, 12px radius, 1px soft borders.
-   No external fonts, CDNs, or images. */
+   wrapped pill nav, 44px tap targets, 12px radius, no external resources. */
 
-/* ---------- theme tokens ---------- */
+/* ---------- theme tokens (PLAN.md - locked) ---------- */
 html[data-theme="dark"] {
   --bg: #0D0D0F; --surface: #16161A; --surface2: #1E1E24;
   --accent: #F2C14E; --hover: #FFD34D;
@@ -35,6 +38,9 @@ html[data-theme="hc"] {
 :root {
   --radius: 12px;
   --tap: 44px;
+  --column: 1120px;
+  --gutter: clamp(20px, 5vw, 40px);
+  --rhythm: clamp(56px, 9vw, 104px);
 }
 
 /* ---------- base ---------- */
@@ -45,28 +51,49 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  font-size: clamp(15px, 0.6vw + 13.5px, 17px);
-  line-height: 1.6;
+  font-size: clamp(15px, 0.5vw + 13.5px, 16.5px);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   overflow-x: hidden;
 }
-h1, h2, h3 { line-height: 1.25; font-weight: 600; margin: 0 0 0.6em; }
-h1 { font-size: clamp(28px, 5vw, 44px); }
-h2 { font-size: clamp(21px, 3vw, 28px); }
+h1, h2, h3 { font-weight: 600; margin: 0 0 0.5em; text-wrap: balance; }
+h1 { font-size: clamp(34px, 6vw, 54px); line-height: 1.08; letter-spacing: -0.02em; }
+h2 { font-size: clamp(24px, 3.5vw, 32px); line-height: 1.18; letter-spacing: -0.01em; }
+h3 { font-size: clamp(16px, 1.5vw, 17px); line-height: 1.35; }
 p { margin: 0 0 1em; }
-a { color: var(--accent); text-decoration: none; overflow-wrap: anywhere; }
-a:hover { color: var(--hover); text-decoration: underline; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.wrap { max-width: 1120px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 32px); }
-main { padding-bottom: 48px; }
-section { margin-top: 44px; }
+a { color: var(--accent); text-decoration: none; text-underline-offset: 3px; overflow-wrap: anywhere; }
+a:hover { color: var(--hover); }
+::selection { background: var(--tint); color: var(--text); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+img, svg { max-width: 100%; }
 
-/* ---------- header: wraps on phones ---------- */
+/* ---------- layout: one centered column, comfortable rhythm ---------- */
+.wrap {
+  width: 100%;
+  max-width: var(--column);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+main { padding-bottom: var(--rhythm); }
+main > section { margin-top: var(--rhythm); }
+main > section > h2 {
+  text-align: center;
+  margin-bottom: clamp(24px, 4vw, 40px);
+}
+main > section > .grid { max-width: 1040px; margin-inline: auto; }
+
+/* ---------- header: sticky, wraps on phones, content aligned to column ---------- */
 .site-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 10px 14px;
-  padding: 12px clamp(16px, 4vw, 32px);
+  padding-block: 12px;
+  padding-inline: max(var(--gutter), calc((100% - var(--column)) / 2 + var(--gutter)));
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
@@ -78,6 +105,7 @@ section { margin-top: 44px; }
   color: var(--text);
   font-weight: 600;
   font-size: 16px;
+  letter-spacing: -0.01em;
 }
 .brand:hover { color: var(--text); text-decoration: none; }
 .logo {
@@ -95,7 +123,7 @@ section { margin-top: 44px; }
   justify-content: center;
   min-height: var(--tap);
   padding: 0 16px;
-  border-radius: 999px;
+  border-radius: 9999px;
   border: 1px solid var(--border);
   background: transparent;
   color: var(--muted);
@@ -115,42 +143,47 @@ section { margin-top: 44px; }
   color: var(--accent);
 }
 
-/* ---------- hero ---------- */
-.hero { text-align: center; padding-top: 48px; }
+/* ---------- hero: centered stack with breathing room ---------- */
+.hero {
+  margin-top: 0;
+  padding-top: clamp(52px, 9vw, 100px);
+  text-align: center;
+}
 .logo-lg {
-  width: clamp(84px, 20vw, 128px);
-  height: clamp(84px, 20vw, 128px);
-  margin: 0 auto 20px;
+  width: clamp(96px, 18vw, 152px);
+  height: clamp(96px, 18vw, 152px);
+  margin: 0 auto clamp(24px, 4vw, 36px);
   background: var(--accent);
   -webkit-mask: url("assets/lotus.svg") center / contain no-repeat;
   mask: url("assets/lotus.svg") center / contain no-repeat;
 }
-.lede {
+.hero .lede {
   color: var(--muted);
-  font-size: clamp(16px, 1.4vw, 19px);
-  max-width: 640px;
-  margin: 0 auto;
+  font-size: clamp(16px, 2vw, 19px);
+  max-width: 36rem;
+  margin-inline: auto;
 }
 .downloads {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 12px;
-  margin-top: 28px;
+  gap: clamp(10px, 1.5vw, 16px);
+  margin-top: clamp(28px, 4vw, 44px);
 }
 .btn {
-  flex: 1 1 220px;
+  flex: 1 1 230px;
   max-width: 340px;
+  min-height: 48px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: var(--tap);
-  padding: 10px 20px;
+  padding: 12px 24px;
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
   font-weight: 600;
+  font-size: 15.5px;
 }
 .btn:hover {
   background: var(--surface2);
@@ -158,21 +191,18 @@ section { margin-top: 44px; }
   color: var(--text);
   text-decoration: none;
 }
-.btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--bg);
-}
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
 .btn-primary:hover { background: var(--hover); border-color: var(--hover); color: var(--bg); }
 
 /* ---------- other-android details ---------- */
 .abi {
-  max-width: 520px;
-  margin: 22px auto 0;
+  max-width: 30rem;
+  margin: clamp(20px, 3vw, 28px) auto 0;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 4px 16px;
+  padding: 4px 20px;
   text-align: left;
 }
 .abi summary {
@@ -182,40 +212,54 @@ section { margin-top: 44px; }
   cursor: pointer;
   font-weight: 600;
   color: var(--accent);
+  list-style-position: inside;
 }
 .abi summary:hover { color: var(--hover); }
-.abi ul { margin: 4px 0 14px; padding-left: 1.1em; color: var(--muted); }
-.abi li { margin: 6px 0; }
+.abi ul { margin: 4px 0 16px; padding-left: 1.1em; color: var(--muted); }
+.abi li { margin: 8px 0; }
 .abi a { font-weight: 600; }
 
 /* ---------- grids: features 1/2/3, install 1/2 ---------- */
-.grid { display: grid; gap: 14px; grid-template-columns: 1fr; }
+.grid { display: grid; gap: clamp(12px, 1.6vw, 18px); grid-template-columns: 1fr; }
 @media (min-width: 640px) { .grid { grid-template-columns: repeat(2, 1fr); } }
 @media (min-width: 960px) { .grid.cols-3 { grid-template-columns: repeat(3, 1fr); } }
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 18px;
+  padding: clamp(18px, 2.4vw, 26px);
+  text-align: left;
 }
-.card h3 { font-size: 17px; margin-bottom: 0.35em; }
-.card p { color: var(--muted); margin: 0; font-size: 15px; }
-.steps { margin: 0; padding-left: 1.2em; }
-.steps li { margin: 8px 0; }
+.card h3 { margin-bottom: 0.4em; }
+.card p { color: var(--muted); margin: 0; font-size: 15px; line-height: 1.6; }
+.steps { margin: 0; padding-left: 1.25em; }
+.steps li { margin: 10px 0; padding-left: 4px; }
+.steps li::marker { color: var(--accent); font-weight: 600; }
 
-/* ---------- legal pages ---------- */
-.legal { max-width: 780px; margin: 0 auto; padding-top: 44px; }
+/* ---------- legal pages: centered measure, left-aligned prose ---------- */
+.legal {
+  max-width: 46rem;
+  margin-inline: auto;
+  padding-top: var(--rhythm);
+  text-align: left;
+}
+.legal h1 { text-align: center; margin-bottom: 0.45em; }
 .legal ol { padding-left: 1.3em; }
-.legal li { margin-bottom: 14px; }
+.legal li { margin-bottom: 16px; }
 
-/* ---------- footer ---------- */
+/* ---------- footer: small, muted, centered ---------- */
 .site-footer {
   border-top: 1px solid var(--border);
   background: var(--surface);
-  padding: 12px clamp(16px, 4vw, 32px);
-  text-align: center;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding-block: 8px;
+  padding-inline: max(var(--gutter), calc((100% - var(--column)) / 2 + var(--gutter)));
+  font-size: 13px;
   color: var(--muted);
-  font-size: 14px;
 }
 .site-footer a {
   display: inline-flex;
@@ -223,6 +267,15 @@ section { margin-top: 44px; }
   min-height: var(--tap);
   padding: 0 10px;
   color: var(--muted);
-  font-weight: 600;
+  font-weight: 500;
 }
 .site-footer a:hover { color: var(--accent); }
+
+/* ---------- calm motion: theme and hover changes ease ---------- */
+body, .site-header, .site-footer, .card, .btn, .abi,
+.nav a, .theme-btn, .logo, .logo-lg {
+  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
