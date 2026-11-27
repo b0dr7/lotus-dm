@@ -64,6 +64,7 @@ import com.b0dr7.lotusdm.service.DownloadForegroundService
 import com.b0dr7.lotusdm.ui.Page
 import com.b0dr7.lotusdm.ui.rememberWindowClass
 import com.b0dr7.lotusdm.ui.theme.LocalLotusColors
+import java.io.File
 
 private enum class Filter(val label: String) {
     ALL("All"),
@@ -115,6 +116,26 @@ fun QueueScreen() {
     LaunchedEffect(Unit) {
         if (legacyStorage && !writable) {
             permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+    }
+
+    // A .torrent picked from the file manager is copied into app storage,
+    // because the document grant does not outlive the process.
+    val torrentPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { picked ->
+        if (picked == null) return@rememberLauncherForActivityResult
+        val copied = runCatching {
+            val file = File(context.cacheDir, "pick-${System.currentTimeMillis()}.torrent")
+            context.contentResolver.openInputStream(picked)?.use { input ->
+                file.outputStream().use { output -> input.copyTo(output) }
+            } ?: return@runCatching null
+            file.takeIf { it.length() > 0L }
+        }.getOrNull()
+        when {
+            copied == null -> message = "Could not read that .torrent file."
+            engine.addTorrentFile(copied) == null -> message = "That .torrent file could not be queued."
+            else -> DownloadForegroundService.start(context)
         }
     }
 
@@ -220,7 +241,7 @@ fun QueueScreen() {
                 },
                 modifier = Modifier.weight(1f),
                 singleLine = true,
-                placeholder = { Text("https://example.com/file.zip", fontSize = 13.sp) },
+                placeholder = { Text("https://… or magnet:?xt=…", fontSize = 13.sp) },
                 shape = RoundedCornerShape(12.dp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
             )
@@ -229,7 +250,7 @@ fun QueueScreen() {
                 onClick = {
                     val job = engine.add(link)
                     if (job == null) {
-                        message = "That does not look like an http(s) link."
+                        message = "That is neither an http(s) link nor a magnet."
                     } else {
                         link = ""
                         DownloadForegroundService.start(context)
@@ -243,6 +264,14 @@ fun QueueScreen() {
             ) {
                 Text("Add", fontWeight = FontWeight.SemiBold)
             }
+        }
+
+        TextButton(
+            onClick = {
+                torrentPicker.launch(arrayOf("application/x-bittorrent", "application/octet-stream"))
+            },
+        ) {
+            Text("Add .torrent file", fontSize = 12.sp)
         }
 
         message?.let { text ->
@@ -295,7 +324,10 @@ fun QueueScreen() {
                 TextButton(onClick = {
                     val lines = batchText.split('\n')
                         .map { it.trim() }
-                        .filter { it.startsWith("http://") || it.startsWith("https://") }
+                        .filter {
+                            it.startsWith("http://") || it.startsWith("https://") ||
+                                it.startsWith("magnet:")
+                        }
                     lines.forEach { engine.add(it) }
                     if (lines.isNotEmpty()) DownloadForegroundService.start(context)
                     message = if (lines.isEmpty()) {

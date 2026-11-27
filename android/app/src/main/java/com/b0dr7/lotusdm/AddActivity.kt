@@ -1,6 +1,8 @@
 package com.b0dr7.lotusdm
 
+import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -37,11 +39,14 @@ import com.b0dr7.lotusdm.engine.DownloadEngine
 import com.b0dr7.lotusdm.service.DownloadForegroundService
 import com.b0dr7.lotusdm.ui.theme.LocalLotusColors
 import com.b0dr7.lotusdm.ui.theme.LotusTheme
+import java.io.File
 
 /**
  * Receives links from browsers (ACTION_VIEW) and the share sheet
  * (ACTION_SEND). Nothing starts until the button here is pressed.
  */
+private const val MIME_TORRENT = "application/x-bittorrent"
+
 class AddActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,23 +54,29 @@ class AddActivity : ComponentActivity() {
 
         val link = extractLink(intent)
         val mime = intent?.type
+        val torrent = intent?.data?.takeIf { mime == MIME_TORRENT }
 
         setContent {
             val store = remember { SettingsStore(applicationContext) }
             LotusTheme(mode = store.themeMode) {
                 AddScreen(
-                    link = link,
+                    link = link ?: torrent?.toString(),
                     mime = mime,
                     onConfirm = {
-                        if (link != null) {
-                            DownloadEngine.get(applicationContext).add(link)
-                            DownloadForegroundService.start(applicationContext)
-                            Toast.makeText(
-                                applicationContext,
-                                "Added to the queue",
-                                Toast.LENGTH_SHORT,
-                            ).show()
+                        val queued = if (torrent != null) {
+                            val copy = copyTorrent(applicationContext, torrent)
+                            copy?.let { DownloadEngine.get(applicationContext).addTorrentFile(it) }
+                        } else {
+                            link?.let { DownloadEngine.get(applicationContext).add(it) }
                         }
+                        if (queued != null) {
+                            DownloadForegroundService.start(applicationContext)
+                        }
+                        Toast.makeText(
+                            applicationContext,
+                            if (queued != null) "Added to the queue" else "That link was not usable",
+                            Toast.LENGTH_SHORT,
+                        ).show()
                         finish()
                     },
                     onCancel = { finish() },
@@ -112,7 +123,7 @@ private fun AddScreen(
             text = if (valid) {
                 "This link was handed to Lotus DM by another app."
             } else {
-                "That share did not contain an http(s) link."
+                "That share did not contain a link or a .torrent file."
             },
             color = colors.muted,
             fontSize = 13.sp,
@@ -194,20 +205,29 @@ private fun extractLink(intent: Intent?): String? {
     if (intent == null) return null
 
     return when (intent.action) {
-        Intent.ACTION_VIEW -> intent.data?.toString()?.takeIf { isHttp(it) }
+        Intent.ACTION_VIEW -> intent.data?.toString()?.takeIf { isDownloadable(it) }
         Intent.ACTION_SEND -> {
             val text = intent.getStringExtra(Intent.EXTRA_TEXT)
                 ?: intent.getStringExtra(Intent.EXTRA_SUBJECT)
                 ?: return null
-            val match = Regex("https?://\\S+").find(text) ?: return null
+            val match = Regex("https?://\\S+|magnet:\\?\\S+").find(text) ?: return null
             match.value.trimEnd('.', ',', ')', ']', '}', '"', '\'', '>')
         }
         else -> null
     }
 }
 
-private fun isHttp(value: String): Boolean =
-    value.startsWith("http://") || value.startsWith("https://")
+private fun isDownloadable(value: String): Boolean =
+    value.startsWith("http://") || value.startsWith("https://") || value.startsWith("magnet:")
+
+/** Copies a shared .torrent document into app storage so it can be queued. */
+private fun copyTorrent(context: Context, uri: Uri): File? = runCatching {
+    val target = File(context.cacheDir, "picked-${System.currentTimeMillis()}.torrent")
+    context.contentResolver.openInputStream(uri)?.use { input ->
+        target.outputStream().use { output -> input.copyTo(output) }
+    } ?: return null
+    target.takeIf { it.length() > 0L }
+}.getOrNull()
 
 private fun fileNameOf(link: String?): String? {
     if (link == null) return null

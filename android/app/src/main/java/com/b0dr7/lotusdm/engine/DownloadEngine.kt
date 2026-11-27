@@ -5,6 +5,9 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Handler
 import android.os.Looper
+import com.b0dr7.lotusdm.engine.torrent.TorrentClient
+import com.b0dr7.lotusdm.engine.torrent.TorrentPublisher
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -13,6 +16,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -136,6 +140,14 @@ class DownloadEngine private constructor(context: Context) {
         @Volatile
         var retryAt: Long = 0L
 
+        /** Magnet link or the copied .torrent file, for torrent rows. */
+        @Volatile
+        var torrentUri: String? = null
+
+        /** libtorrent session key once the torrent is live. */
+        @Volatile
+        var torrentHash: String? = null
+
         fun toPublic(): DownloadJob = DownloadJob(
             id = id,
             url = url,
@@ -170,9 +182,13 @@ class DownloadEngine private constructor(context: Context) {
     fun hasWork(): Boolean =
         entries.values.any { it.state == JobState.RUNNING || it.state == JobState.QUEUED }
 
+    /** Lazily created; the session only spins up when a torrent is queued. */
+    private val torrents by lazy { TorrentClient(appContext) }
+
     fun add(url: String): DownloadJob? {
         val clean = url.trim()
         if (clean.isEmpty()) return null
+        if (clean.startsWith("magnet:")) return enqueueTorrent(clean, magnetName(clean))
         if (!clean.startsWith("http://") && !clean.startsWith("https://")) return null
 
         val created = System.currentTimeMillis()
@@ -199,6 +215,57 @@ class DownloadEngine private constructor(context: Context) {
         return entry.toPublic()
     }
 
+    /** Queues a .torrent file the user picked; the file is copied into the job. */
+    fun addTorrentFile(file: File): DownloadJob? {
+        if (!file.exists() || file.length() == 0L) return null
+        return enqueueTorrent(file.absolutePath, file.name.removeSuffix(".torrent"))
+    }
+
+    private fun enqueueTorrent(uri: String, label: String): DownloadJob {
+        val created = System.currentTimeMillis()
+        val id = "t$created-${(1000..9999).random()}"
+        val dir = File(partsRoot(), id)
+        dir.mkdirs()
+
+        var source = uri
+        if (!uri.startsWith("magnet:")) {
+            val original = File(uri)
+            val copy = File(dir, "source.torrent")
+            runCatching { original.copyTo(copy, overwrite = true) }
+                .onSuccess { source = copy.absolutePath }
+        }
+
+        val entry = Entry(
+            id = id,
+            url = source,
+            fileName = label.ifBlank { "Torrent" },
+            dir = dir,
+            state = JobState.QUEUED,
+            downloaded = 0L,
+            total = 0L,
+            error = "Fetching torrent metadata",
+            limit = 0L,
+            created = created,
+        )
+        entry.kind = JobKind.TORRENT
+        entry.torrentUri = source
+        entries[id] = entry
+        persist(entry)
+        publishStatus()
+        pump()
+        return entry.toPublic()
+    }
+
+    private fun magnetName(magnet: String): String {
+        val query = magnet.substringAfter('?', "")
+        val display = query.split('&')
+            .firstOrNull { it.startsWith("dn=") }
+            ?.removePrefix("dn=")
+            ?.let { java.net.URLDecoder.decode(it, "UTF-8") }
+            ?.trim()
+        return display.orEmpty().ifBlank { "Magnet download" }
+    }
+
     /** Explicit user start (or a retry). Respects the Wi-Fi gate. */
     fun start(id: String) {
         val entry = entries[id] ?: return
@@ -223,7 +290,9 @@ class DownloadEngine private constructor(context: Context) {
         entry.retryAt = 0L
         persist(entry)
         publishStatus()
-        entry.run = scope.launch { download(entry) }
+        entry.run = scope.launch {
+            if (entry.kind == JobKind.TORRENT) torrentDownload(entry) else download(entry)
+        }
     }
 
     /**
@@ -251,6 +320,7 @@ class DownloadEngine private constructor(context: Context) {
         entry.state = JobState.PAUSED
         entry.awaitingWifi = false
         entry.speed = 0L
+        entry.torrentHash?.let { torrents.pause(it) }
         entry.run?.cancel()
         entry.run = null
         persist(entry)
@@ -285,6 +355,7 @@ class DownloadEngine private constructor(context: Context) {
     fun cancel(id: String) {
         val entry = entries[id] ?: return
         entry.state = JobState.PAUSED
+        entry.torrentHash?.let { torrents.remove(it) }
         entry.run?.cancel()
         entry.run = null
         entries.remove(id)
@@ -309,9 +380,16 @@ class DownloadEngine private constructor(context: Context) {
         val entry = entries[id] ?: return false
         entry.run?.cancel()
         entry.run = null
-        val removed = entry.uri?.let { uri ->
-            CompletedFileStore.delete(appContext, uri, entry.savedPath)
-        } ?: false
+        entry.torrentHash?.let { torrents.remove(it) }
+        // A finished torrent already lives in Downloads/LotusDM, so only the
+        // row goes away here.
+        val removed = if (entry.kind == JobKind.TORRENT) {
+            true
+        } else {
+            entry.uri?.let { uri ->
+                CompletedFileStore.delete(appContext, uri, entry.savedPath)
+            } ?: false
+        }
         entries.remove(id)
         entry.dir.deleteRecursively()
         publishStatus()
@@ -426,6 +504,61 @@ class DownloadEngine private constructor(context: Context) {
             // A finished/paused job frees a slot for the next queued one.
             pump()
         }
+    }
+
+    /** Torrent side of the queue: add to libtorrent, then follow its status. */
+    private suspend fun torrentDownload(entry: Entry) {
+        try {
+            val source = entry.torrentUri ?: throw IOException("Missing torrent source")
+            val client = torrents
+            val limitKb = ((if (entry.limit > 0L) entry.limit else speedLimit) / 1024L).toInt()
+            client.setDownloadLimit(limitKb)
+
+            val added = withContext(Dispatchers.IO) { client.add(source, entry.dir) }
+            entry.torrentHash = added.hash
+            entry.fileName = added.name
+            if (added.total > 0L) entry.total = added.total
+            entry.error = null
+            persist(entry)
+            publishStatus()
+
+            while (currentCoroutineContext().isActive) {
+                val progress = withContext(Dispatchers.IO) { client.status(added.hash) }
+                    ?: throw IOException("Torrent dropped out of the session")
+                entry.downloaded = progress.downloaded
+                if (progress.total > 0L) entry.total = progress.total
+                entry.speed = progress.speed
+                entry.error = if (progress.peers > 0) null else "Searching for peers"
+                publishStatus()
+
+                if (progress.finished) {
+                    withContext(Dispatchers.IO) { client.pause(added.hash) }
+                    finishTorrent(entry)
+                    return
+                }
+                delay(1000L)
+            }
+        } catch (cancel: CancellationException) {
+            throw cancel
+        } catch (t: Throwable) {
+            if (entry.state == JobState.PAUSED) return
+            handleFailure(entry, t)
+        } finally {
+            entry.run = null
+            pump()
+        }
+    }
+
+    private fun finishTorrent(entry: Entry) {
+        val published = TorrentPublisher.publishDirectory(appContext, entry.dir, entry.fileName)
+        entry.state = JobState.COMPLETED
+        entry.speed = 0L
+        if (entry.total <= 0L) entry.total = entry.downloaded
+        entry.downloaded = entry.total
+        entry.error = if (published) null else "Finished, but still in app storage"
+        entry.uri = null
+        persist(entry)
+        publishStatus()
     }
 
     private fun handleFailure(entry: Entry, t: Throwable) {
@@ -750,6 +883,7 @@ class DownloadEngine private constructor(context: Context) {
                     .put("tag", entry.tag)
                     .put("priority", entry.priority.name)
                     .put("kind", entry.kind.name)
+                    .put("torrentUri", entry.torrentUri ?: "")
                 File(entry.dir, META_NAME).writeText(json.toString())
             }
         }
@@ -796,6 +930,9 @@ class DownloadEngine private constructor(context: Context) {
                 entry.kind = JobKind.entries
                     .firstOrNull { it.name == json.optString("kind", "") }
                     ?: JobKind.HTTP
+                // The libtorrent session is gone after a restart, so a
+                // restored torrent is re-added from its source on resume.
+                entry.torrentUri = json.optString("torrentUri", "").ifEmpty { null }
 
                 val segments = json.optJSONArray("segments")
                 if (segments != null && entry.segCount > 0) {
