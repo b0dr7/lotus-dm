@@ -9,6 +9,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,7 +21,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -54,6 +59,8 @@ import com.b0dr7.lotusdm.engine.DownloadEngine
 import com.b0dr7.lotusdm.engine.DownloadJob
 import com.b0dr7.lotusdm.engine.JobState
 import com.b0dr7.lotusdm.service.DownloadForegroundService
+import com.b0dr7.lotusdm.ui.Page
+import com.b0dr7.lotusdm.ui.rememberWindowClass
 import com.b0dr7.lotusdm.ui.theme.LocalLotusColors
 
 private enum class Filter(val label: String) {
@@ -134,8 +141,30 @@ fun QueueScreen() {
         }
     }
 
+    val window = rememberWindowClass()
+
+    val renderJob: @Composable (DownloadJob) -> Unit = { job ->
+        JobRow(
+            job = job,
+            onPause = { engine.pause(job.id) },
+            onResume = {
+                if (job.state == JobState.FAILED) engine.retry(job.id)
+                else engine.resume(job.id)
+                DownloadForegroundService.start(context)
+            },
+            onCancel = { engine.cancel(job.id) },
+            onOpen = { openJob(job) },
+            onDelete = {
+                val removed = engine.delete(job.id)
+                if (!removed) message = "Removed the row, but the file was already gone."
+            },
+            onCycleLimit = { engine.setLimit(job.id, nextLimit(job.limit)) },
+        )
+    }
+
+    Page(window) { pageModifier ->
     Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+        modifier = pageModifier.padding(horizontal = window.gutter),
     ) {
         Spacer(Modifier.height(20.dp))
 
@@ -155,7 +184,12 @@ fun QueueScreen() {
 
         Spacer(Modifier.height(8.dp))
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // A flip phone's cover display is narrow: let the chips scroll
+        // instead of squeezing or clipping them.
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             Filter.entries.forEach { candidate ->
                 FilterChip(
                     selected = filter == candidate,
@@ -216,32 +250,27 @@ fun QueueScreen() {
 
         if (visible.isEmpty()) {
             EmptyQueue()
+        } else if (window.isMultiColumn) {
+            // Tablets and unfolded phones: cards flow into as many columns
+            // as the window fits instead of one very wide list.
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 340.dp),
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                gridItems(visible, key = { it.id }) { job -> renderJob(job) }
+            }
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                items(visible, key = { it.id }) { job ->
-                    JobRow(
-                        job = job,
-                        onPause = { engine.pause(job.id) },
-                        onResume = {
-                            if (job.state == JobState.FAILED) engine.retry(job.id)
-                            else engine.resume(job.id)
-                            DownloadForegroundService.start(context)
-                        },
-                        onCancel = { engine.cancel(job.id) },
-                        onOpen = { openJob(job) },
-                        onDelete = {
-                            val removed = engine.delete(job.id)
-                            if (!removed) message = "Removed the row, but the file was already gone."
-                        },
-                        onCycleLimit = { engine.setLimit(job.id, nextLimit(job.limit)) },
-                    )
-                }
+                items(visible, key = { it.id }) { job -> renderJob(job) }
                 item { Spacer(Modifier.height(16.dp)) }
             }
         }
+    }
     }
 
     if (showBatch) {

@@ -4,7 +4,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -26,6 +25,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.b0dr7.lotusdm.ui.Page
+import com.b0dr7.lotusdm.ui.rememberWindowClass
 import com.b0dr7.lotusdm.ui.theme.LocalLotusColors
 import com.b0dr7.lotusdm.ui.theme.ThemeMode
 
@@ -38,13 +39,15 @@ fun SettingsScreen(
 ) {
     val colors = LocalLotusColors.current
 
+    val window = rememberWindowClass()
+
+    Page(window) { pageModifier ->
     Column(
-        modifier = Modifier
-            .fillMaxSize()
+        modifier = pageModifier
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = window.gutter),
     ) {
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(if (window.isMultiColumn) 36.dp else 28.dp))
         Text(
             text = "Settings",
             color = colors.text,
@@ -97,6 +100,7 @@ fun SettingsScreen(
             fontSize = 13.sp,
         )
         Spacer(Modifier.height(28.dp))
+    }
     }
 }
 
