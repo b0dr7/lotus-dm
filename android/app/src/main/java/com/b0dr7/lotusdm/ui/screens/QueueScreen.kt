@@ -1,5 +1,12 @@
 package com.b0dr7.lotusdm.ui.screens
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,6 +46,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.b0dr7.lotusdm.engine.DownloadEngine
 import com.b0dr7.lotusdm.engine.DownloadJob
 import com.b0dr7.lotusdm.engine.JobState
@@ -57,6 +66,40 @@ fun QueueScreen() {
     DisposableEffect(engine) {
         engine.observe { updated -> jobs = updated }
         onDispose { engine.observe(null) }
+    }
+
+    // API 23-28 need the write permission before we can use public Downloads.
+    val legacyStorage = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+    var writable by remember {
+        mutableStateOf(
+            !legacyStorage || ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE,
+            ) == PackageManager.PERMISSION_GRANTED,
+        )
+    }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted -> writable = granted }
+
+    LaunchedEffect(Unit) {
+        if (legacyStorage && !writable) {
+            permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+    }
+
+    val openJob: (DownloadJob) -> Unit = { job ->
+        val uri = job.uri
+        if (uri == null) {
+            message = "This file is no longer on the phone."
+        } else {
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(Uri.parse(uri), job.mime)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            val opened = runCatching { context.startActivity(intent) }.isSuccess
+            if (!opened) message = "No app on this phone can open that file type."
+        }
     }
 
     Column(
@@ -128,6 +171,11 @@ fun QueueScreen() {
                             DownloadForegroundService.start(context)
                         },
                         onCancel = { engine.cancel(job.id) },
+                        onOpen = { openJob(job) },
+                        onDelete = {
+                            val removed = engine.delete(job.id)
+                            if (!removed) message = "Removed the row, but the file was already gone."
+                        },
                     )
                 }
                 item { Spacer(Modifier.height(16.dp)) }
@@ -152,7 +200,7 @@ private fun EmptyQueue() {
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "Paste a direct link above. Downloads keep going when you leave the app.",
+                text = "Paste a direct link above. Finished files land in Downloads/LotusDM.",
                 color = colors.muted,
                 fontSize = 13.sp,
                 textAlign = TextAlign.Center,
@@ -167,6 +215,8 @@ private fun JobRow(
     onPause: () -> Unit,
     onResume: () -> Unit,
     onCancel: () -> Unit,
+    onOpen: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     val colors = LocalLotusColors.current
 
@@ -223,18 +273,14 @@ private fun JobRow(
                         Text(if (job.state == JobState.FAILED) "Retry" else "Resume")
                     }
                     JobState.QUEUED -> TextButton(onClick = onResume) { Text("Start") }
-                    JobState.COMPLETED -> Unit
+                    JobState.COMPLETED -> {
+                        TextButton(onClick = onOpen, enabled = job.uri != null) { Text("Open") }
+                        TextButton(onClick = onDelete) { Text("Delete") }
+                    }
                 }
 
                 if (job.state != JobState.COMPLETED) {
                     TextButton(onClick = onCancel) { Text("Cancel") }
-                } else {
-                    Text(
-                        text = "Done",
-                        color = colors.accent,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                    )
                 }
             }
         }
@@ -248,7 +294,7 @@ private fun metaLine(job: DownloadJob): String {
         JobState.QUEUED -> "Queued"
         JobState.PAUSED -> "Paused"
         JobState.FAILED -> job.error ?: "Failed"
-        JobState.COMPLETED -> "Completed"
+        JobState.COMPLETED -> job.error ?: "In Downloads/LotusDM"
     }
     parts += if (job.total > 0L) {
         "${formatBytes(job.downloaded)} of ${formatBytes(job.total)}"

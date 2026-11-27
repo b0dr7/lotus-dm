@@ -50,7 +50,7 @@ class DownloadEngine private constructor(context: Context) {
     private class Entry(
         val id: String,
         val url: String,
-        val fileName: String,
+        @Volatile var fileName: String,
         val dir: File,
         @Volatile var state: JobState,
         @Volatile var downloaded: Long,
@@ -61,6 +61,12 @@ class DownloadEngine private constructor(context: Context) {
     ) {
         @Volatile
         var speed: Long = 0L
+
+        @Volatile
+        var uri: String? = null
+
+        @Volatile
+        var savedPath: String? = null
 
         @Volatile
         var run: kotlinx.coroutines.Job? = null
@@ -74,6 +80,8 @@ class DownloadEngine private constructor(context: Context) {
             total = total,
             speed = speed,
             error = error,
+            uri = uri,
+            mime = CompletedFileStore.mimeFor(fileName),
         )
     }
 
@@ -98,11 +106,10 @@ class DownloadEngine private constructor(context: Context) {
         val dir = File(partsRoot(), id)
         dir.mkdirs()
 
-        val fileName = guessFileName(clean, id)
         val entry = Entry(
             id = id,
             url = clean,
-            fileName = fileName,
+            fileName = guessFileName(clean, id),
             dir = dir,
             state = JobState.QUEUED,
             downloaded = 0L,
@@ -150,6 +157,20 @@ class DownloadEngine private constructor(context: Context) {
         entries.remove(id)
         entry.dir.deleteRecursively()
         publishStatus()
+    }
+
+    /** Removes a finished row and the file it created. */
+    fun delete(id: String): Boolean {
+        val entry = entries[id] ?: return false
+        entry.run?.cancel()
+        entry.run = null
+        val removed = entry.uri?.let { uri ->
+            CompletedFileStore.delete(appContext, uri, entry.savedPath)
+        } ?: false
+        entries.remove(id)
+        entry.dir.deleteRecursively()
+        publishStatus()
+        return removed
     }
 
     fun setLimit(id: String, bytesPerSecond: Long) {
@@ -240,13 +261,15 @@ class DownloadEngine private constructor(context: Context) {
 
     private fun complete(entry: Entry) {
         val part = File(entry.dir, PART_NAME)
-        val target = File(downloadRoot(), entry.fileName)
-        target.parentFile?.mkdirs()
-        if (target.exists()) target.delete()
+        val published = CompletedFileStore.publish(appContext, part, entry.fileName)
 
-        if (!part.renameTo(target)) {
-            runCatching { part.copyTo(target, overwrite = true) }
-            if (!target.exists()) entry.error = "Finished, but could not move the file"
+        if (published != null) {
+            entry.uri = published.uri
+            entry.savedPath = published.path
+            entry.fileName = published.displayName
+            entry.error = null
+        } else {
+            entry.error = "Saved, but not in Downloads"
         }
 
         entry.state = JobState.COMPLETED
@@ -267,6 +290,8 @@ class DownloadEngine private constructor(context: Context) {
                 .put("downloaded", entry.downloaded)
                 .put("total", entry.total)
                 .put("created", entry.created)
+                .put("uri", entry.uri ?: "")
+                .put("savedPath", entry.savedPath ?: "")
             File(entry.dir, META_NAME).writeText(json.toString())
         }
     }
@@ -283,17 +308,15 @@ class DownloadEngine private constructor(context: Context) {
             runCatching {
                 val json = JSONObject(meta.readText())
                 val id = json.optString("id", dir.name)
-                val url = json.getString("url")
-                val fileName = json.optString("fileName", id)
                 val state = when (json.optString("state", JobState.PAUSED.name)) {
                     JobState.COMPLETED.name -> JobState.COMPLETED
                     JobState.FAILED.name -> JobState.FAILED
                     else -> JobState.PAUSED
                 }
-                entries[id] = Entry(
+                val entry = Entry(
                     id = id,
-                    url = url,
-                    fileName = fileName,
+                    url = json.getString("url"),
+                    fileName = json.optString("fileName", id),
                     dir = dir,
                     state = state,
                     downloaded = json.optLong("downloaded", 0L),
@@ -302,6 +325,9 @@ class DownloadEngine private constructor(context: Context) {
                     limit = 0L,
                     created = json.optLong("created", dir.lastModified()),
                 )
+                entry.uri = json.optString("uri", "").ifEmpty { null }
+                entry.savedPath = json.optString("savedPath", "").ifEmpty { null }
+                entries[id] = entry
             }
         }
     }
@@ -318,11 +344,6 @@ class DownloadEngine private constructor(context: Context) {
     private fun partsRoot(): File {
         val base = appContext.getExternalFilesDir(null) ?: appContext.filesDir
         return File(base, "parts")
-    }
-
-    private fun downloadRoot(): File {
-        val base = appContext.getExternalFilesDir(null) ?: appContext.filesDir
-        return File(base, "LotusDM")
     }
 
     private fun guessFileName(url: String, fallback: String): String {
