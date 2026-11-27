@@ -10,6 +10,7 @@ use crate::ui::theme::ThemeMode;
 pub struct Settings {
     pub theme_mode: ThemeMode,
     pub default_folder: String,
+    pub global_speed_limit_kbps: u64,
 }
 
 impl Default for Settings {
@@ -17,6 +18,7 @@ impl Default for Settings {
         Self {
             theme_mode: ThemeMode::Dark,
             default_folder: default_download_folder(),
+            global_speed_limit_kbps: 0,
         }
     }
 }

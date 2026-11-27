@@ -11,6 +11,21 @@ pub struct Meta {
     pub etag: Option<String>,
     pub last_modified: Option<String>,
     pub received: u64,
+    #[serde(default)]
+    pub segments: Option<Vec<SegmentRange>>,
+}
+
+/// Inclusive byte range of one parallel segment.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SegmentRange {
+    pub start: u64,
+    pub end: u64,
+}
+
+impl SegmentRange {
+    pub fn len(&self) -> u64 {
+        self.end - self.start + 1
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -27,7 +42,11 @@ pub fn parts_dir(folder: &str, id: &str) -> PathBuf {
 }
 
 pub fn part_path(folder: &str, id: &str) -> PathBuf {
-    parts_dir(folder, id).join("part0")
+    segment_path(folder, id, 0)
+}
+
+pub fn segment_path(folder: &str, id: &str, index: usize) -> PathBuf {
+    parts_dir(folder, id).join(format!("part{index}"))
 }
 
 pub fn meta_path(folder: &str, id: &str) -> PathBuf {
@@ -49,16 +68,12 @@ pub fn part_len(path: &Path) -> u64 {
     std::fs::metadata(path).map(|m| m.len()).unwrap_or(0)
 }
 
-/// True when the resume validators differ from the stored ones (or there is
-/// nothing stored to compare against).
+/// True when the resume validators differ from the stored ones.
 pub fn validators_changed(
-    meta: &Option<Meta>,
+    meta: &Meta,
     etag: &Option<String>,
     last_modified: &Option<String>,
 ) -> bool {
-    let Some(meta) = meta else {
-        return true;
-    };
     if let (Some(stored), Some(current)) = (&meta.etag, etag) {
         if stored != current {
             return true;
@@ -119,8 +134,9 @@ pub fn unique_target(folder: &str, filename: &str) -> PathBuf {
 }
 
 /// Sleeps reads so the average rate stays at limit_kbps (0 = unlimited).
+/// Shared instances pace every caller against one cumulative budget.
 pub struct RateLimiter {
-    bytes_per_sec: u64,
+    limit_kbps: u64,
     started: Instant,
     total: u64,
 }
@@ -128,18 +144,26 @@ pub struct RateLimiter {
 impl RateLimiter {
     pub fn new(limit_kbps: u64) -> Self {
         Self {
-            bytes_per_sec: limit_kbps.saturating_mul(1024),
+            limit_kbps,
             started: Instant::now(),
             total: 0,
         }
     }
 
+    pub fn set_limit(&mut self, limit_kbps: u64) {
+        if self.limit_kbps != limit_kbps {
+            self.limit_kbps = limit_kbps;
+            self.started = Instant::now();
+            self.total = 0;
+        }
+    }
+
     pub fn throttle(&mut self, n: u64) {
-        if self.bytes_per_sec == 0 {
+        if self.limit_kbps == 0 {
             return;
         }
         self.total = self.total.saturating_add(n);
-        let expected = self.total as f64 / self.bytes_per_sec as f64;
+        let expected = self.total as f64 / (self.limit_kbps * 1024) as f64;
         let target = self.started + Duration::from_secs_f64(expected);
         let now = Instant::now();
         if target > now {
