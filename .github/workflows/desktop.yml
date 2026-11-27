@@ -14,6 +14,10 @@ on:
       - ".github/workflows/desktop.yml"
   workflow_dispatch:
 
+# Pushing the refreshed Cargo.lock back to main needs a writable token.
+permissions:
+  contents: write
+
 concurrency:
   group: desktop-${{ github.ref }}
   cancel-in-progress: true
@@ -32,6 +36,25 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: desktop
+
+      # Dependencies are added by editing Cargo.toml only (this project is
+      # never built on the author's machine), so the lock file has to be
+      # refreshed here. `cargo metadata` resolves and writes Cargo.lock
+      # without compiling; the check below then runs in the same job, which is
+      # the only verification possible because a push made with GITHUB_TOKEN
+      # does not start another workflow run.
+      - name: Refresh Cargo.lock
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          cargo metadata --format-version 1 > /dev/null
+          if [ -n "$(git status --porcelain Cargo.lock)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add Cargo.lock
+            git commit -m "chore(desktop): refresh Cargo.lock"
+            git push
+          fi
 
       - name: Cargo check
         run: cargo check --locked --all-targets

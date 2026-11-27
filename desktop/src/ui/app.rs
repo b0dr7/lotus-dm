@@ -60,6 +60,7 @@ impl LotusApp {
         theme::apply(settings.theme_mode, &cc.egui_ctx);
         let light_theme = theme::is_light(settings.theme_mode);
         engine::set_global_limit_kbps(settings.global_speed_limit_kbps);
+        engine::torrent::set_encryption(settings.torrent_encryption);
 
         let mut queue = queue::load();
         for job in queue.iter_mut() {

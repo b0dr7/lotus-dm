@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
+use crate::engine::torrent::EncryptionMode;
 use crate::ui::theme::ThemeMode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -57,6 +58,8 @@ pub struct Settings {
     pub close_to_tray: bool,
     pub start_hidden: bool,
     pub notifications: bool,
+    /// MSE policy for torrent downloads (see `engine::torrent`).
+    pub torrent_encryption: EncryptionMode,
 }
 
 impl Default for Settings {
@@ -79,6 +82,7 @@ impl Default for Settings {
             close_to_tray: true,
             start_hidden: false,
             notifications: true,
+            torrent_encryption: EncryptionMode::Disabled,
         }
     }
 }

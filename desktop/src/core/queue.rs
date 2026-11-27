@@ -96,6 +96,11 @@ pub fn save(jobs: &[DownloadJob]) -> Result<(), String> {
 }
 
 pub fn derive_filename(url: &str) -> String {
+    // A magnet link has no path to derive a name from; the torrent engine
+    // reports the real name once the metadata arrives.
+    if url.trim_start().to_ascii_lowercase().starts_with("magnet:") {
+        return "torrent".to_string();
+    }
     let path = url.split(['?', '#']).next().unwrap_or("");
     let last = path.rsplit('/').next().unwrap_or("").trim();
     if last.is_empty() {

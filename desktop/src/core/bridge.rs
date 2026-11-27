@@ -146,9 +146,16 @@ fn queue_one(
     filename: Option<String>,
 ) -> bool {
     let url = url.trim().to_string();
-    let ok = (url.starts_with("http://") || url.starts_with("https://")) && url.len() <= 8192;
+    let ok = (url.starts_with("http://")
+        || url.starts_with("https://")
+        || url.to_ascii_lowercase().starts_with("magnet:?"))
+        && url.len() <= 8192;
     if !ok {
-        respond(stream, 400, "{\"ok\":false,\"error\":\"needs an http(s) url\"}");
+        respond(
+            stream,
+            400,
+            "{\"ok\":false,\"error\":\"needs an http(s) url or a magnet link\"}",
+        );
         return false;
     }
     let filename = filename
