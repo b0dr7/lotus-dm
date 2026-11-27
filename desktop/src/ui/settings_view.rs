@@ -74,6 +74,80 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
     }
     ui.add_space(12.0);
 
+    ui.label(RichText::new("Traffic mode").color(p.text));
+    ui.label(
+        RichText::new(
+            "Low / Medium / High set a shared speed cap. Custom keeps the value above. Unlimited removes it.",
+        )
+        .color(p.muted),
+    );
+    ui.add_space(6.0);
+    let mut mode = cfg.traffic_mode;
+    ui.horizontal_wrapped(|ui| {
+        for candidate in [
+            settings::TrafficMode::Unlimited,
+            settings::TrafficMode::High,
+            settings::TrafficMode::Medium,
+            settings::TrafficMode::Low,
+            settings::TrafficMode::Custom,
+        ] {
+            if ui
+                .selectable_label(mode == candidate, candidate.label())
+                .clicked()
+            {
+                mode = candidate;
+            }
+        }
+    });
+    if mode != cfg.traffic_mode {
+        cfg.traffic_mode = mode;
+        if mode != settings::TrafficMode::Custom {
+            cfg.global_speed_limit_kbps = mode.suggested_kbps();
+            engine::set_global_limit_kbps(cfg.global_speed_limit_kbps);
+        }
+        persist(cfg);
+    }
+    ui.add_space(8.0);
+    ui.label(RichText::new("Max connections per server").color(p.text));
+    ui.label(RichText::new("Segments used for one file (1-32). Default 8.").color(p.muted));
+    let r = ui.add(
+        egui::DragValue::new(&mut cfg.max_connections_per_server)
+            .range(1..=32)
+            .speed(1),
+    );
+    if r.changed() {
+        persist(cfg);
+    }
+    ui.add_space(12.0);
+
+    ui.label(RichText::new("Auto-shutdown").color(p.text));
+    ui.label(RichText::new("Close the app automatically once the queue finishes.").color(p.muted));
+    if ui.checkbox(&mut cfg.auto_shutdown, "Shut down when the queue is done").changed() {
+        persist(cfg);
+    }
+    ui.add_space(12.0);
+
+    ui.label(RichText::new("Launch at startup").color(p.text));
+    ui.label(RichText::new("Add Lotus to the per-user Windows Run key.").color(p.muted));
+    if ui
+        .checkbox(&mut cfg.launch_at_startup, "Start with Windows")
+        .changed()
+    {
+        crate::core::sys::set_autostart(cfg.launch_at_startup);
+        persist(cfg);
+    }
+    ui.add_space(12.0);
+
+    ui.label(RichText::new("Portable mode").color(p.text));
+    ui.label(
+        RichText::new(
+            "Portable mode is enabled by placing an empty file named 'portable' next to the \
+             executable. Data is then kept in a 'data' folder beside it instead of %APPDATA%.",
+        )
+        .color(p.muted),
+    );
+    ui.add_space(12.0);
+
     ui.label(RichText::new("Clipboard watcher").color(p.text));
     ui.label(
         RichText::new(
