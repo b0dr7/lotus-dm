@@ -26,7 +26,7 @@ supplies the unsigned archive:
 5. Fill in the listing:
    - Name: `Lotus Download Manager`
    - Summary (max 250 chars): "Send links from Firefox to the Lotus Download
-     Manager queue. Requires the Lotus desktop app running on the same machine."
+     Manager queue. Requires the Windows app running on the same machine."
    - Category: **Download Management**
    - Tags: download manager, download
    - License: match the repository licence (or "All Rights Reserved" if the repo
