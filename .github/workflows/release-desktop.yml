@@ -1,6 +1,7 @@
 name: release-desktop
 
-# Tag push (v*) builds the Windows binaries and attaches them to the
+# Tag push (v*) builds the Windows binaries, wraps them in Inno Setup
+# installers (x64, x86, universal) and attaches the installers to the
 # GitHub Release for that tag. No tag is pushed by CI itself.
 on:
   push:
@@ -31,24 +32,42 @@ jobs:
       - name: Build x86
         run: cargo build --release --target i686-pc-windows-msvc
 
-      - name: Name release assets
+      - name: Ensure Inno Setup
         shell: pwsh
         run: |
-          $out = $PWD.Path
-          Copy-Item "target/x86_64-pc-windows-msvc/release/lotus-dm.exe" "$out/LotusDM-windows-x64.exe"
-          Copy-Item "target/i686-pc-windows-msvc/release/lotus-dm.exe"  "$out/LotusDM-windows-x86.exe"
-          # A 32-bit PE runs on both 32- and 64-bit Windows (WOW64), so the
-          # i686 build is the one that works everywhere: the universal asset.
-          Copy-Item "target/i686-pc-windows-msvc/release/lotus-dm.exe"  "$out/LotusDM-windows-universal.exe"
-          Get-ChildItem "$out/LotusDM-windows-*.exe" | Select-Object Name, Length
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup --no-progress -y
+          }
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe not found" }
+          & $iscc /? | Select-Object -First 1
+
+      - name: Build installers
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          $ver = "${{ github.ref_name }}".TrimStart("v")
+          Push-Location installer
+          try {
+            & $iscc "/DAppVer=$ver" "/DMyArch=x64"  "/DOutName=x64"       "lotus-dm.iss"
+            if ($LASTEXITCODE -ne 0) { throw "x64 installer failed" }
+            & $iscc "/DAppVer=$ver" "/DMyArch=x86"  "/DOutName=x86"       "lotus-dm.iss"
+            if ($LASTEXITCODE -ne 0) { throw "x86 installer failed" }
+            & $iscc "/DAppVer=$ver" "/DMyArch=both" "/DOutName=universal" "lotus-dm.iss"
+            if ($LASTEXITCODE -ne 0) { throw "universal installer failed" }
+          } finally {
+            Pop-Location
+          }
+          Get-ChildItem dist | Select-Object Name, Length
 
       - name: Attach to release
         uses: softprops/action-gh-release@v2
         with:
           fail_on_unmatched_files: true
           files: |
-            desktop/LotusDM-windows-x64.exe
-            desktop/LotusDM-windows-x86.exe
-            desktop/LotusDM-windows-universal.exe
+            desktop/dist/LotusDM-windows-x64.exe
+            desktop/dist/LotusDM-windows-x86.exe
+            desktop/dist/LotusDM-windows-universal.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
