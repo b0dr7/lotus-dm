@@ -1,5 +1,5 @@
 # Terms of Service - Lotus Download Manager
-Last updated: <date>. Installing or using Lotus Download Manager ("the
+Last updated: November 27, 2026. Installing or using Lotus Download Manager ("the
 Software") means you accept these terms. If you disagree, do not use it.
 
 1. AS-IS. The Software is provided free of charge, "as is" and "as
