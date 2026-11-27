@@ -128,7 +128,7 @@ pub fn set_autostart(enabled: bool) -> bool {
         const HKEY_CURRENT_USER: isize = 0x80000001u32 as isize;
         const KEY_SET_VALUE: u32 = 0x0002;
         const REG_SZ: u32 = 1;
-        let subkey: Vec<u16> = OsStr::new("Software\Microsoft\Windows\CurrentVersion\Run")
+        let subkey: Vec<u16> = OsStr::new("Software\\Microsoft\\Windows\\CurrentVersion\\Run")
             .encode_wide()
             .chain(std::iter::once(0))
             .collect();
