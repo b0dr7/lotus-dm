@@ -40,10 +40,12 @@ jobs:
 
       # assembleDebug, not just compileDebugKotlin: the torrent engine ships
       # native libraries and a minSdk of its own, so packaging has to run too.
+      # The fresh variant is the one to use when a change has to be proven
+      # from a from-scratch build instead of whatever Gradle had cached.
+      - name: Assemble debug APKs (fresh caches)
+        if: inputs.fresh
+        run: gradle --no-daemon --stacktrace --no-build-cache --refresh-dependencies assembleDebug
+
       - name: Assemble debug APKs
-        run: |
-          if [ "${{ inputs.fresh }}" = "true" ]; then
-            gradle --no-daemon --stacktrace --no-build-cache --refresh-dependencies assembleDebug
-          else
-            gradle --no-daemon --stacktrace assembleDebug
-          fi
+        if: ${{ !inputs.fresh }}
+        run: gradle --no-daemon --stacktrace assembleDebug
