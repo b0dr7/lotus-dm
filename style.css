@@ -198,14 +198,14 @@ img, svg { max-width: 100%; }
 .theme-toggle .chev { color: var(--muted); font-size: 9px; }
 .theme-menu {
   position: absolute; top: calc(100% + 6px); right: 0;
-  min-width: 214px; padding: 6px;
+  min-width: 196px; padding: 6px;
   display: flex; flex-direction: column; gap: 4px;
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
   z-index: 30;
 }
 .theme-menu[hidden] { display: none; }
-.theme-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 2px; background: var(--surface2); border-radius: 3px; }
+.theme-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 2px; background: var(--surface2); border-radius: 3px; }
 .mode-btn {
   min-height: 30px; border: 0; border-radius: 2px;
   background: transparent; color: var(--muted);
