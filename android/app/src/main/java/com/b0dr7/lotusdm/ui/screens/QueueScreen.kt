@@ -3,6 +3,7 @@ package com.b0dr7.lotusdm.ui.screens
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -95,6 +96,7 @@ fun QueueScreen() {
     var batchText by remember { mutableStateOf("") }
     var renameId by remember { mutableStateOf<String?>(null) }
     var renameText by remember { mutableStateOf("") }
+    var previewJob by remember { mutableStateOf<DownloadJob?>(null) }
 
     DisposableEffect(engine) {
         engine.observe { updated -> jobs = updated }
@@ -176,7 +178,9 @@ fun QueueScreen() {
             },
             onCancel = { engine.cancel(job.id) },
             onOpen = { openJob(job) },
-            onPlay = { engine.play(job.id) },
+            onPlay = {
+                previewJob = job
+            },
             onRename = {
                 renameId = job.id
                 renameText = job.fileName
@@ -368,6 +372,86 @@ fun QueueScreen() {
             },
         )
     }
+
+    previewJob?.let { job ->
+        if (job.isMedia && job.state == JobState.COMPLETED && job.uri != null) {
+            MediaPreviewDialog(
+                job = job,
+                onDismiss = { previewJob = null },
+            )
+        }
+    }
+}
+
+@Composable
+private fun MediaPreviewDialog(job: DownloadJob, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val colors = LocalLotusColors.current
+    var player by remember { mutableStateOf<MediaPlayer?>(null) }
+    var playing by remember { mutableStateOf(false) }
+
+    DisposableEffect(job.id) {
+        val p = MediaPlayer.create(context, Uri.parse(job.uri!!))
+        player = p
+        p?.setOnCompletionListener { playing = false }
+        onDispose {
+            p?.release()
+            player = null
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = {
+            player?.stop()
+            player?.release()
+            player = null
+            onDismiss()
+        },
+        title = { Text(job.fileName, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        text = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = if (playing) "Playing" else "Paused",
+                    color = colors.muted,
+                    fontSize = 12.sp,
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = {
+                        val p = player
+                        if (p != null) {
+                            if (playing) {
+                                p.pause()
+                                playing = false
+                            } else {
+                                p.start()
+                                playing = true
+                            }
+                        }
+                    }) {
+                        Text(if (playing) "Pause" else "Play")
+                    }
+                    Button(onClick = {
+                        player?.stop()
+                        player?.release()
+                        player = MediaPlayer.create(context, Uri.parse(job.uri!!))
+                        player?.setOnCompletionListener { playing = false }
+                        playing = false
+                    }) {
+                        Text("Stop")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                player?.stop()
+                player?.release()
+                player = null
+                onDismiss()
+            }) { Text("Close") }
+        },
+    )
 }
 
 @Composable
