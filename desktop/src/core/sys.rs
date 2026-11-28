@@ -1,7 +1,3 @@
-//! Small OS helpers with no crate dependencies: clipboard text and local
-//! wall-clock time. Windows gets the real API; other hosts fall back so the
-//! crate still checks on a non-Windows development machine.
-
 #[cfg(windows)]
 mod win {
     #[repr(C)]
@@ -71,7 +67,6 @@ fn read_clipboard() -> Option<String> {
     None
 }
 
-/// Current clipboard contents as text, or None when unavailable.
 pub fn clipboard_text() -> Option<String> {
     read_clipboard()
 }
@@ -93,13 +88,10 @@ fn system_time() -> (u8, u8) {
     (((day / 3600) % 24) as u8, ((day / 60) % 60) as u8)
 }
 
-/// Local wall-clock time as (hour, minute), 24h.
 pub fn local_hm() -> (u8, u8) {
     system_time()
 }
 
-/// Add or remove the per-user Run entry so Lotus starts with Windows.
-/// Returns true on success. No-op (returns false) on non-Windows hosts.
 pub fn set_autostart(enabled: bool) -> bool {
     #[cfg(windows)]
     {
@@ -180,19 +172,14 @@ pub fn set_autostart(enabled: bool) -> bool {
     }
 }
 
-/// Title of the app window, which is how the Win32 helpers find it.
 pub const MAIN_WINDOW_TITLE: &str = "Lotus Download Manager";
 
 #[cfg(windows)]
 mod park {
-    //! Off-screen parking for the tray window; see [`hide_main_window`].
-
     use std::ffi::OsStr;
     use std::os::windows::ffi::OsStrExt;
 
-    /// Extended-style index (winuser.h `GWL_EXSTYLE`).
     pub const GWL_EXSTYLE: i32 = -20;
-    /// Keeps the window out of the taskbar and Alt+Tab.
     pub const WS_EX_TOOLWINDOW: isize = 0x0000_0080;
     pub const SWP_NOSIZE: u32 = 0x0001;
     pub const SWP_NOZORDER: u32 = 0x0004;
@@ -200,11 +187,9 @@ mod park {
     pub const SWP_FRAMECHANGED: u32 = 0x0020;
     pub const SW_SHOW: i32 = 5;
     pub const SW_RESTORE: i32 = 9;
-    /// Far enough away that no monitor shows it, yet still a visible window.
     pub const PARK_X: i32 = -32_000;
     pub const PARK_Y: i32 = -32_000;
 
-    /// `GetWindowRect` fills all four edges; only the top-left corner is used.
     #[repr(C)]
     #[derive(Default)]
     pub struct Rect {
@@ -233,9 +218,6 @@ mod park {
         pub fn SetForegroundWindow(hwnd: *mut core::ffi::c_void) -> i32;
     }
 
-    // GetWindowLongPtrW is a real export only on 64-bit Windows; the 32-bit
-    // headers alias it to GetWindowLongW, which this build has to call by that
-    // name. Both are pointer-sized, so `isize` fits either.
     #[cfg(target_pointer_width = "64")]
     #[link(name = "user32")]
     extern "system" {
@@ -251,7 +233,6 @@ mod park {
         pub fn SetWindowLongPtrW(hwnd: *mut core::ffi::c_void, index: i32, value: isize) -> isize;
     }
 
-    /// The app window, found by title so any thread can ask for it.
     pub fn window() -> Option<*mut core::ffi::c_void> {
         let title: Vec<u16> = OsStr::new(super::MAIN_WINDOW_TITLE)
             .encode_wide()
@@ -265,16 +246,6 @@ mod park {
 #[cfg(windows)]
 static PARKED_FROM: std::sync::Mutex<Option<(i32, i32)>> = std::sync::Mutex::new(None);
 
-/// Move the window out of the way for the tray.
-///
-/// It is parked, not hidden. Windows sends no `WM_PAINT`, and therefore no
-/// `RedrawRequested`, to a window that is invisible or minimised, and eframe
-/// runs `App::update` only from redraws (emilk/egui#5229; fixed upstream after
-/// the 0.31 release this app uses). A visible window that is merely off-screen
-/// keeps painting, so the queue, the retry timers and the finish/fail
-/// notifications keep running while the window sits in the tray.
-/// `WS_EX_TOOLWINDOW` keeps it out of the taskbar and Alt+Tab so it still
-/// looks hidden to the user.
 pub fn hide_main_window() {
     #[cfg(windows)]
     unsafe {
@@ -303,7 +274,6 @@ pub fn hide_main_window() {
     }
 }
 
-/// Put the window back where it was and bring it to the front.
 pub fn show_main_window() {
     #[cfg(windows)]
     unsafe {
