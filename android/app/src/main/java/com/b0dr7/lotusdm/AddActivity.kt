@@ -309,24 +309,6 @@ private fun NewDownloadSheet(
 
             Button(
                 onClick = {
-                Checkbox(checked = delay, onCheckedChange = { delay = it })
-                Text("Delay start", color = colors.text, fontSize = 12.5.sp)
-                if (delay) {
-                    Spacer(Modifier.width(8.dp))
-                    OutlinedTextField(
-                        value = startIn,
-                        onValueChange = { startIn = it },
-                        modifier = Modifier.width(72.dp),
-                        placeholder = { Text("min", fontSize = 11.sp) },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = lotusFieldColors(colors.accent, colors.border, colors.muted, colors.text),
-                    )
-                }
-            }
-
-            Button(
-                onClick = {
                     val startAt = if (delay) {
                         startIn.trim().toLongOrNull()?.let { minutes ->
                             System.currentTimeMillis() + minutes * 60_000L
