@@ -92,7 +92,11 @@ pub fn row(
         painter.with_clip_rect(row_clip).text(
             Pos2::new(left, meta_y),
             Align2::LEFT_CENTER,
-            host_of(&job.url),
+            if (job.quality.is_some() {
+                format!("{}  ·  {}", host_of(&job.url), job.quality.as_deref().unwrap_or(""))
+            } else {
+                host_of(&job.url)
+            },
             FontId::proportional(12.0),
             p.muted,
         );

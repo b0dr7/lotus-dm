@@ -511,6 +511,7 @@ private fun metaLine(job: DownloadJob): String {
         parts += "Waiting for Wi-Fi"
     } else {
         if (job.isTorrent) parts += "Torrent"
+        if (job.isMedia && job.quality != null) parts += job.quality!!
         parts += when (job.state) {
             JobState.RUNNING -> "Downloading"
             JobState.QUEUED -> job.error ?: "Queued"
