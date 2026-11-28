@@ -78,12 +78,12 @@ class AddActivity : ComponentActivity() {
                 NewDownloadSheet(
                     incoming = link ?: torrent?.toString(),
                     mime = mime,
-                    onConfirm = { url, name, quality, startAt ->
+                    onConfirm = { url, name, quality, startAt, mirrors ->
                         val queued = if (torrent != null) {
                             val copy = copyTorrent(applicationContext, torrent)
                             copy?.let { DownloadEngine.get(applicationContext).addTorrentFile(it) }
                         } else {
-                            DownloadEngine.get(applicationContext).add(url, name, quality, startAt)
+                            DownloadEngine.get(applicationContext).add(url, name, quality, startAt, mirrors)
                         }
                         if (queued != null) {
                             DownloadForegroundService.start(applicationContext)
@@ -107,7 +107,7 @@ class AddActivity : ComponentActivity() {
 private fun NewDownloadSheet(
     incoming: String?,
     mime: String?,
-    onConfirm: (String, String?, String?, Long) -> Unit,
+    onConfirm: (String, String?, String?, Long, List<String>) -> Unit,
     onCancel: () -> Unit,
 ) {
     val colors = LocalLotusColors.current
@@ -119,6 +119,7 @@ private fun NewDownloadSheet(
     var quality by remember(incoming) { mutableStateOf(DEFAULT_VIDEO_QUALITY) }
     var delay by remember(incoming) { mutableStateOf(false) }
     var startIn by remember(incoming) { mutableStateOf("") }
+    var mirrors by remember(incoming) { mutableStateOf("") }
 
     val media = incoming != null && isMediaUrl(incoming)
 
@@ -293,6 +294,37 @@ private fun NewDownloadSheet(
                 }
             }
 
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                value = mirrors,
+                onValueChange = { mirrors = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Mirrors (one per line)", fontSize = 12.sp) },
+                minLines = 2,
+                shape = RoundedCornerShape(12.dp),
+                colors = lotusFieldColors(colors.accent, colors.border, colors.muted, colors.text),
+            )
+
+            Spacer(Modifier.height(18.dp))
+
+            Button(
+                onClick = {
+                Checkbox(checked = delay, onCheckedChange = { delay = it })
+                Text("Delay start", color = colors.text, fontSize = 12.5.sp)
+                if (delay) {
+                    Spacer(Modifier.width(8.dp))
+                    OutlinedTextField(
+                        value = startIn,
+                        onValueChange = { startIn = it },
+                        modifier = Modifier.width(72.dp),
+                        placeholder = { Text("min", fontSize = 11.sp) },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = lotusFieldColors(colors.accent, colors.border, colors.muted, colors.text),
+                    )
+                }
+            }
+
             Button(
                 onClick = {
                     val startAt = if (delay) {
@@ -300,11 +332,13 @@ private fun NewDownloadSheet(
                             System.currentTimeMillis() + minutes * 60_000L
                         } ?: 0L
                     } else 0L
+                    val mirrorList = mirrors.trim().lines().map { it.trim() }.filter { it.isNotEmpty() }
                     onConfirm(
                         link.trim(),
                         name.trim().takeIf { it.isNotEmpty() },
                         if (media) quality else null,
                         startAt,
+                        mirrorList,
                     )
                 },
                 enabled = usable,
