@@ -15,7 +15,8 @@ rfd = "0.18.0"
 suppaftp = { version = "12", default-features = false }
 # BitTorrent engine (see src/engine/torrent). librqbit is async, so it needs a
 # tokio runtime and pulls its own TLS stack for .torrent links.
-librqbit = "9.1"
+# Probe: rqbit PR #633 (MSE/PE) from lingdiansr's fork, pinned by rev.
+librqbit = { git = "https://github.com/lingdiansr/rqbit", rev = "9b7877cbd884f77c8923e81287b6ed4bf2b2c67f" }
 tokio = { version = "1", features = ["rt-multi-thread", "net", "time", "io-util", "sync"] }
 
 [target.'cfg(windows)'.build-dependencies]
