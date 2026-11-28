@@ -55,6 +55,10 @@ data class DownloadJob(
         get() = if (total > 0L) (downloaded.toFloat() / total.toFloat()).coerceIn(0f, 1f) else 0f
 
     val isTorrent: Boolean get() = kind == JobKind.TORRENT
+
+    /** True for media jobs (video/audio picks) the queue plays back. */
+    val isMedia: Boolean
+        get() = isMediaUrl(url) && kind == JobKind.HTTP && quality != null
 }
 
 /** The tags the app offers; an empty tag means "untagged". */

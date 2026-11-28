@@ -177,6 +177,7 @@ fun QueueScreen() {
             },
             onCancel = { engine.cancel(job.id) },
             onOpen = { openJob(job) },
+            onPlay = { engine.play(job.id) },
             onDelete = {
                 val removed = engine.delete(job.id)
                 if (!removed) message = "Removed the row, but the file was already gone."
@@ -378,6 +379,7 @@ private fun JobRow(
     onResume: () -> Unit,
     onCancel: () -> Unit,
     onOpen: () -> Unit,
+    onPlay: () -> Unit,
     onDelete: () -> Unit,
     onCycleLimit: () -> Unit,
     onCycleTag: () -> Unit,
@@ -449,6 +451,9 @@ private fun JobRow(
                     JobState.FAILED -> TextButton(onClick = onResume) { Text("Retry") }
                     JobState.QUEUED -> TextButton(onClick = onResume) { Text("Start") }
                     JobState.COMPLETED -> {
+                        if (job.isMedia) {
+                            TextButton(onClick = onPlay) { Text("Play") }
+                        }
                         TextButton(onClick = onOpen, enabled = job.uri != null) { Text("Open") }
                         TextButton(onClick = onDelete) { Text("Delete") }
                     }

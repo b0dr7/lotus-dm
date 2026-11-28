@@ -1,6 +1,7 @@
 package com.b0dr7.lotusdm.engine
 
 import android.content.Context
+import android.media.MediaPlayer
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Handler
@@ -383,6 +384,14 @@ class DownloadEngine private constructor(context: Context) {
     }
 
     fun resume(id: String) = start(id)
+
+    /** Plays a completed media file through the framework player. */
+    fun play(id: String) {
+        val entry = entries[id] ?: return
+        val uri = entry.uri ?: return
+        val player = MediaPlayer.create(appContext, uri) ?: return
+        player.start()
+    }
 
     /** Manual retry: clears the automatic counter and starts over. */
     fun retry(id: String) {
