@@ -43,6 +43,9 @@ pub struct DownloadJob {
     pub speed_limit_kbps: u64,
     #[serde(default)]
     pub quality: Option<String>,
+    /// Mirror URLs tried in order if the primary URL fails.
+    #[serde(default)]
+    pub mirrors: Vec<String>,
     #[serde(default)]
     pub start_at: Option<u64>,
     #[serde(skip)]
@@ -63,6 +66,7 @@ impl DownloadJob {
             no_resume: false,
             speed_limit_kbps: 0,
             quality: None,
+            mirrors: Vec::new(),
             start_at: None,
             speed_bps: 0,
         }

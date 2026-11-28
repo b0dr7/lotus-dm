@@ -17,6 +17,17 @@ const TICK: Duration = Duration::from_millis(250);
 const META_WRITE: Duration = Duration::from_secs(1);
 
 pub(super) fn run(job: DownloadJob, control: Arc<Control>, tx: Sender<Event>, restarts: u32) {
+    let mut job = job;
+    if !job.mirrors.is_empty() {
+        let mut urls = vec![job.url.clone()];
+        urls.extend(job.mirrors.clone());
+        for url in &urls {
+            if ureq::get(url).set("User-Agent", "LotusDM/0.1").call().is_ok() {
+                job.url = url.clone();
+                break;
+            }
+        }
+    }
     let parts = parts_dir(&job.folder, &job.id);
     if let Err(err) = std::fs::create_dir_all(&parts) {
         fail(
