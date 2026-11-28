@@ -114,6 +114,12 @@ class DownloadEngine private constructor(context: Context) {
         @Volatile var tag: String = "",
         @Volatile var priority: JobPriority = JobPriority.NORMAL,
         @Volatile var kind: JobKind = JobKind.HTTP,
+        /** True while the Wi-Fi-only gate is holding this job back. */
+        @Volatile
+        var awaitingWifi: Boolean = false,
+        /** Media pick (height like "1080p", format like "mp3"); media jobs only. */
+        @Volatile
+        var quality: String? = null,
     ) {
         @Volatile
         var speed: Long = 0L
@@ -168,10 +174,6 @@ class DownloadEngine private constructor(context: Context) {
         /** libtorrent session key once the torrent is live. */
         @Volatile
         var torrentHash: String? = null
-
-        /** Media pick (height like "1080p", format like "mp3"); media jobs only. */
-        @Volatile
-        var quality: String? = null
 
         fun toPublic(): DownloadJob = DownloadJob(
             id = id,
@@ -898,7 +900,9 @@ class DownloadEngine private constructor(context: Context) {
             ).start()
             process.inputStream.bufferedReader().readText()
             val finished = process.waitFor()
-            if (!finished) throw IOException("yt-dlp exited with ${process.exitValue()}")
+            if (!finished) {
+                throw IOException("yt-dlp exited with ${process.exitValue()}")
+            }
             val finalFile = entry.dir.listFiles()
                 ?.firstOrNull { it.isFile && it.name.startsWith("$base.") }
                 ?: throw IOException("yt-dlp did not produce a file")
