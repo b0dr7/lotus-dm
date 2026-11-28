@@ -10,6 +10,7 @@
 use std::path::Path;
 use std::process::Command;
 use std::sync::mpsc::Sender;
+use std::sync::Arc;
 
 use crate::core::queue::DownloadJob;
 
@@ -96,7 +97,7 @@ pub fn resolve(kind: MediaKind, pick: &str) -> Quality {
             height: None,
         };
     }
-    let height = VIDEO_HEIGHTS
+    let height: u32 = VIDEO_HEIGHTS
         .iter()
         .copied()
         .find(|h| format!("{h}p").eq_ignore_ascii_case(&pick.trim()))
@@ -117,7 +118,7 @@ pub fn output_name(url: &str, quality: &Quality) -> String {
     let stem = Path::new(base)
         .file_stem()
         .map(|s| s.to_string_lossy().into_owned())
-        .unwrap_or_else(|_| "download".to_string());
+        .unwrap_or_else(|| "download".to_string());
     if quality.kind == MediaKind::Audio {
         return format!("{stem}.{}", quality.ext);
     }
@@ -176,10 +177,10 @@ pub(super) fn run(job: DownloadJob, control: Arc<Control>, tx: Sender<Event>) {
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         let reason = stderr
             .lines()
-            .map(str::trim)
+            .map(|line| line.trim())
             .filter(|line| !line.is_empty())
             .last()
-            .map(str::to_string)
+            .map(|line| line.to_string())
             .unwrap_or_else(|| format!("yt-dlp exited with {}", output.status));
         fail(&tx, &job.id, format!("yt-dlp: {reason}"));
         return;
