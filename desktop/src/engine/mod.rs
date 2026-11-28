@@ -6,7 +6,7 @@ use std::thread;
 
 use crate::core::queue::DownloadJob;
 
-pub mod ftp;
+pub mod convert;\npub mod ftp;
 pub mod job;
 pub mod media;
 pub mod seg_thread;

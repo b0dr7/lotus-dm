@@ -46,6 +46,8 @@ pub struct LotusApp {
     auto_armed: bool,
     bridge_rx: Receiver<bridge::AddRequest>,
     bridge_port: Option<u16>,
+    convert_msg: Option<String>,
+    convert_rx: Option<Receiver<String>>,
     light_theme: bool,
     _tray: Option<Tray>,
     quitting: bool,
@@ -115,6 +117,8 @@ impl LotusApp {
             auto_armed: true,
             bridge_rx,
             bridge_port,
+            convert_msg: None,
+            convert_rx: None,
             light_theme,
             _tray: tray,
             quitting: false,
@@ -464,6 +468,28 @@ impl LotusApp {
                 let path = std::path::Path::new(&job.folder).join(&job.filename);
                 details::open_file(&path.to_string_lossy());
             }
+            details::Action::Convert => {
+                let input = std::path::Path::new(&job.folder)
+                    .join(&job.filename)
+                    .to_string_lossy()
+                    .into_owned();
+                if let Some(output) = rfd::FileDialog::new()
+                    .set_file_name(&job.filename)
+                    .save_file()
+                {
+                    let output = output.to_string_lossy().into_owned();
+                    let (tx, rx) = mpsc::channel();
+                    std::thread::spawn(move || {
+                        let result = match engine::convert::run(&input, &output) {
+                            Ok(path) => format!("Converted: {path}"),
+                            Err(err) => format!("Convert failed: {err}"),
+                        };
+                        let _ = tx.send(result);
+                    });
+                    self.convert_rx = Some(rx);
+                    self.convert_msg = Some("Converting...".to_string());
+                }
+            }
         }
     }
 
@@ -509,6 +535,9 @@ impl LotusApp {
                     if ui.add(resume_all).clicked() {
                         self.resume_all();
                     }
+                    if let Some(msg) = &self.convert_msg {
+                        ui.label(RichText::new(msg.as_str()).size(11.0).color(p.muted));
+                    }
                 });
                 ui.add_space(9.0);
             });
@@ -524,6 +553,13 @@ impl eframe::App for LotusApp {
 
         self.drain_bridge();
         self.drain_events();
+
+        if let Some(rx) = &self.convert_rx {
+            if let Ok(msg) = rx.try_recv() {
+                self.convert_msg = Some(msg);
+                self.convert_rx = None;
+            }
+        }
 
         if ctx.input(|input| input.viewport().close_requested())
             && self.settings.close_to_tray

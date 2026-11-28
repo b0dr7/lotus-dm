@@ -12,6 +12,7 @@ pub enum Action {
     Cancel,
     OpenFolder,
     OpenFile,
+    Convert,
 }
 
 pub struct Outcome {
@@ -215,6 +216,12 @@ pub fn show(ctx: &egui::Context, job: &mut DownloadJob, p: &Palette) -> Outcome 
                     && ui.button("Open file").clicked()
                 {
                     outcome.action = Some(Action::OpenFile);
+                }
+                if job.status == JobStatus::Done
+                    && crate::engine::convert::available()
+                    && ui.button("Convert").clicked()
+                {
+                    outcome.action = Some(Action::Convert);
                 }
                 if matches!(
                     job.status,
