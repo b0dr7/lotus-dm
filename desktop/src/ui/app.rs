@@ -21,6 +21,7 @@ use crate::ui::sidebar;
 use crate::ui::spider::SpiderState;
 use crate::ui::theme::{self, Palette, ThemeMode};
 use crate::ui::tray::{self, Tray, TrayAction};
+use crate::ui::zip_pick::{self, ZipPick};
 
 const NAV_WIDTH: f32 = 214.0;
 
@@ -33,6 +34,7 @@ pub struct LotusApp {
     site_url: String,
     site_entries: Vec<engine::site_explorer::SiteEntry>,
     spider: SpiderState,
+    zip_pick: Option<ZipPick>,
     queue: Vec<DownloadJob>,
     add_dialog: Option<AddDialog>,
     batch_dialog: Option<BatchDialog>,
@@ -101,6 +103,7 @@ impl LotusApp {
             site_url: String::new(),
             site_entries: Vec::new(),
             spider: SpiderState::default(),
+            zip_pick: None,
             queue,
             add_dialog: None,
             batch_dialog: None,
@@ -470,7 +473,7 @@ impl LotusApp {
             .show(ctx, |ui| {
                 ui.add_space(9.0);
                 ui.horizontal(|ui| {
-                    let field_w = (ui.available_width() - 296.0).max(150.0);
+                    let field_w = (ui.available_width() - 390.0).max(150.0);
                     let edit = ui.add_sized(
                         [field_w, 30.0],
                         egui::TextEdit::singleline(&mut self.url_input)
@@ -487,6 +490,11 @@ impl LotusApp {
                     let more = egui::Button::new("Paste list").min_size(Vec2::new(88.0, 30.0));
                     if ui.add(more).clicked() {
                         self.batch_dialog = Some(BatchDialog::default());
+                    }
+                    let from_zip =
+                        egui::Button::new("From zip").min_size(Vec2::new(84.0, 30.0));
+                    if ui.add(from_zip).clicked() {
+                        self.zip_pick = Some(ZipPick::default());
                     }
                     let pause_all = egui::Button::new("Pause all").min_size(Vec2::new(84.0, 30.0));
                     if ui.add(pause_all).clicked() {
@@ -701,6 +709,12 @@ impl eframe::App for LotusApp {
             ctx,
             &mut self.queue,
             &mut self.batch_dialog,
+            &self.settings.default_folder,
+            &p,
+        );
+        zip_pick::zip_window(
+            ctx,
+            &mut self.zip_pick,
             &self.settings.default_folder,
             &p,
         );

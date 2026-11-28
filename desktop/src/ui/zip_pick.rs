@@ -92,7 +92,7 @@ impl ZipPick {
     }
 
     fn poll(&mut self) {
-        if let Some(rx) = self.listing.as_ref() {
+        if let Some(rx) = self.listing.take() {
             match rx.try_recv() {
                 Ok(Ok(entries)) => {
                     self.status = match entries.len() {
@@ -102,29 +102,28 @@ impl ZipPick {
                     };
                     self.picked = (0..entries.len()).collect();
                     self.entries = entries;
-                    self.listing = None;
                 }
                 Ok(Err(err)) => {
                     self.status = err;
-                    self.listing = None;
                 }
-                Err(TryRecvError::Empty) => {}
+                Err(TryRecvError::Empty) => self.listing = Some(rx),
                 Err(TryRecvError::Disconnected) => {
                     self.status = "Reading the index stopped.".to_string();
-                    self.listing = None;
                 }
             }
         }
-        if let Some(rx) = self.pulling.as_ref() {
-            if let Ok(line) = rx.try_recv() {
-                self.status = line;
-                self.pulling = None;
+        if let Some(rx) = self.pulling.take() {
+            match rx.try_recv() {
+                Ok(line) => self.status = line,
+                Err(TryRecvError::Empty) => self.pulling = Some(rx),
+                Err(TryRecvError::Disconnected) => {
+                    self.status = "Pulling the files out stopped.".to_string();
+                }
             }
         }
     }
 }
 
-/// Window for pulling single files out of a remote zip.
 pub fn zip_window(
     ctx: &egui::Context,
     state: &mut Option<ZipPick>,
@@ -153,7 +152,7 @@ pub fn zip_window(
                 ui.add_sized(
                     [width, 26.0],
                     egui::TextEdit::singleline(&mut pick.url)
-                        .hint_text("https://example.com/archive.zip"),
+                        .hint_text("https:
                 );
                 if ui
                     .add_enabled(!pick.busy(), egui::Button::new("List"))
@@ -225,10 +224,7 @@ pub fn zip_window(
             );
         });
 
-    if !open {
-        *state = None;
-        return;
-    }
+    let closed = !open;
     if list_clicked {
         pick.list();
     }
@@ -238,5 +234,8 @@ pub fn zip_window(
     }
     if pick.busy() {
         ctx.request_repaint_after(std::time::Duration::from_millis(250));
+    }
+    if closed {
+        *state = None;
     }
 }

@@ -15,3 +15,4 @@ pub mod theme;
 pub mod tray;
 #[cfg(windows)]
 pub mod tray_win;
+pub mod zip_pick;
