@@ -1,6 +1,8 @@
 use eframe::egui::{self, Align2, RichText, Vec2};
 
 use crate::core::queue::{derive_filename, save, DownloadJob};
+use crate::core::settings::Lang;
+use crate::ui::i18n::{self, Key};
 use crate::ui::theme::Palette;
 
 #[derive(Default)]
@@ -20,6 +22,7 @@ pub fn add_dialog_window(
     queue: &mut Vec<DownloadJob>,
     add_dialog: &mut Option<AddDialog>,
     default_folder: &str,
+    lang: Lang,
     p: &Palette,
 ) {
     let Some(mut dialog) = add_dialog.take() else {
@@ -29,34 +32,34 @@ pub fn add_dialog_window(
     let mut cancel = false;
     let mut submit = false;
 
-    egui::Window::new("Add URL")
+    egui::Window::new(i18n::tr(lang, Key::AddUrl))
         .collapsible(false)
         .resizable(false)
         .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
         .open(&mut open)
         .show(ctx, |ui| {
             ui.add_space(4.0);
-            ui.label("URL *");
+            ui.label(i18n::tr(lang, Key::UrlLabel));
             ui.add_sized(
                 [ui.available_width(), 26.0],
                 egui::TextEdit::singleline(&mut dialog.url)
                     .hint_text("https://example.com/file.zip"),
             );
-            ui.label("Filename (optional)");
+            ui.label(i18n::tr(lang, Key::FilenameOptional));
             ui.add_sized(
                 [ui.available_width(), 26.0],
                 egui::TextEdit::singleline(&mut dialog.filename)
                     .hint_text("derived from URL if empty"),
             );
             ui.add_space(8.0);
-            ui.label("Folder (optional)");
+            ui.label(i18n::tr(lang, Key::FolderOptional));
             ui.add_sized(
                 [ui.available_width(), 26.0],
                 egui::TextEdit::singleline(&mut dialog.folder).hint_text(default_folder),
             );
             if crate::engine::media::is_media(&dialog.url) {
                 ui.add_space(8.0);
-                ui.label("Quality");
+                ui.label(i18n::tr(lang, Key::Quality));
                 let video_pick = |pick: &str| {
                     pick.ends_with('p')
                         && pick[..pick.len() - 1].chars().all(|c| c.is_ascii_digit())
@@ -86,14 +89,14 @@ pub fn add_dialog_window(
             }
             ui.add_space(8.0);
             ui.horizontal(|ui| {
-                ui.checkbox(&mut dialog.delay, "Delay start");
+                ui.checkbox(&mut dialog.delay, i18n::tr(lang, Key::DelayStart));
                 if dialog.delay {
-                    ui.label("by (minutes)");
+                    ui.label(i18n::tr(lang, Key::DelayMinutes));
                     ui.add_sized([72.0, 26.0], egui::TextEdit::singleline(&mut dialog.start_in));
                 }
             });
             ui.add_space(8.0);
-            ui.label("Mirrors (one per line)");
+            ui.label(i18n::tr(lang, Key::Mirrors));
             ui.add_space(2.0);
             ui.add_sized(
                 [ui.available_width(), 40.0],
@@ -102,11 +105,11 @@ pub fn add_dialog_window(
             ui.add_space(12.0);
             ui.horizontal(|ui| {
                 let can_submit = !dialog.url.trim().is_empty();
-                let add = egui::Button::new(RichText::new("Add").color(p.bg)).fill(p.accent);
+                let add = egui::Button::new(RichText::new(i18n::tr(lang, Key::Add)).color(p.bg)).fill(p.accent);
                 if ui.add_enabled(can_submit, add).clicked() {
                     submit = true;
                 }
-                if ui.button("Cancel").clicked() {
+                if ui.button(i18n::tr(lang, Key::Cancel)).clicked() {
                     cancel = true;
                 }
             });

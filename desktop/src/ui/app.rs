@@ -827,6 +827,7 @@ impl eframe::App for LotusApp {
             &mut self.queue,
             &mut self.add_dialog,
             &self.settings.default_folder,
+            self.settings.language,
             &p,
         );
         batch_dialog::batch_dialog_window(
