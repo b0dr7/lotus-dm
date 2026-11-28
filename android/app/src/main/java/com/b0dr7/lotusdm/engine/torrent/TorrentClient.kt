@@ -39,15 +39,6 @@ class TorrentClient(context: Context) {
         started = true
     }
 
-    fun shutdown() {
-        synchronized(lock) {
-            if (!started) return
-            started = false
-            infos.clear()
-        }
-        runCatching { manager.stop() }
-    }
-
     /**
      * Adds a magnet link or a .torrent file. Magnet metadata is fetched up
      * front (blocking, so call it off the main thread) because the queue needs
@@ -70,9 +61,9 @@ class TorrentClient(context: Context) {
                 throw IOException(it.message ?: "libtorrent refused this torrent")
             }
         } else {
-            // Already in the session, which means a paused row was restarted:
-            // libtorrent keeps the old handle paused, so it has to be resumed
-            // here or nothing will ever be downloaded again.
+            // Already in the session (a paused row that was restarted): the
+            // old handle is still paused, so resume it rather than adding a
+            // second copy libtorrent would refuse.
             runCatching { existing.resume() }
         }
 

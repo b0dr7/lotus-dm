@@ -10,6 +10,7 @@ import com.b0dr7.lotusdm.engine.torrent.TorrentPublisher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
@@ -368,7 +369,6 @@ class DownloadEngine private constructor(context: Context) {
 
     fun cancel(id: String) {
         val entry = entries[id] ?: return
-        entry.state = JobState.PAUSED
         entry.torrentHash?.let { torrents.remove(it) }
         entry.run?.cancel()
         entry.run = null
@@ -432,17 +432,17 @@ class DownloadEngine private constructor(context: Context) {
 
     private fun networkAllowed(): Boolean = !wifiOnly || isOnWifi()
 
-    /**
-     * Called once a second by the foreground service. Holds the queue back on
-     * mobile data and lets it go again when Wi-Fi comes back, without a
-     * network callback the app would have to unregister.
-     */
     /** Re-applies the Wi-Fi gate right after the setting changed. */
     fun refreshNetwork() {
         lastAllowed = !networkAllowed()
         onNetworkTick()
     }
 
+    /**
+     * Called once a second by the foreground service. Holds the queue back on
+     * mobile data and lets it go again when Wi-Fi comes back, without a
+     * network callback the app would have to unregister.
+     */
     fun onNetworkTick() {
         val allowed = networkAllowed()
         if (allowed == lastAllowed) {
@@ -533,29 +533,33 @@ class DownloadEngine private constructor(context: Context) {
             val limitKb = ((if (entry.limit > 0L) entry.limit else speedLimit) / 1024L).toInt()
             client.setDownloadLimit(limitKb)
 
-            // A paused row still owns a live, paused handle in the session.
-            // Resuming that handle is the fix for "pause then resume does
-            // nothing": re-adding would find the same paused handle and the
-            // poller would sit there reporting zero traffic forever.
-            val known = entry.torrentHash
-            val resumed = known != null &&
-                withContext(Dispatchers.IO) { client.resume(known) }
-            val hash = if (known != null && resumed) {
-                known
-            } else {
-                val added = withContext(Dispatchers.IO) { client.add(source, entry.dir) }
-                entry.torrentHash = added.hash
-                entry.fileName = added.name
-                if (added.total > 0L) entry.total = added.total
-                added.hash
-            }
-            if (entry.state != JobState.RUNNING) {
-                // The row was paused while this start was in flight, and a
-                // resume that landed after pause() must not leave the handle
-                // running with nobody polling it.
-                withContext(Dispatchers.IO) { client.pause(hash) }
-                return
-            }
+            // A paused row still owns a live, paused handle, so resuming that
+            // handle is what makes pause-then-resume work again; re-adding
+            // would only find the same paused handle.
+            //
+            // The hand-off runs NonCancellable: a pause that lands while a
+            // magnet is still fetching metadata would otherwise cancel the
+            // coroutine before the handle could be paused, leaving a torrent
+            // downloading with nobody polling it. The state is checked again
+            // inside the same block, so a row that gave up in the meantime
+            // pauses the handle straight back and starts nothing.
+            val hash = withContext(NonCancellable + Dispatchers.IO) {
+                val known = entry.torrentHash
+                val hash = if (known != null && client.resume(known)) {
+                    known
+                } else {
+                    val added = client.add(source, entry.dir)
+                    entry.torrentHash = added.hash
+                    entry.fileName = added.name
+                    if (added.total > 0L) entry.total = added.total
+                    added.hash
+                }
+                if (entry.state != JobState.RUNNING) {
+                    client.pause(hash)
+                    return@withContext null
+                }
+                hash
+            } ?: return
             entry.error = null
             persist(entry)
             publishStatus()
@@ -566,7 +570,8 @@ class DownloadEngine private constructor(context: Context) {
                 entry.downloaded = progress.downloaded
                 if (progress.total > 0L) entry.total = progress.total
                 entry.speed = progress.speed
-                entry.error = if (progress.peers > 0) null else "Searching for peers"
+                val peersNote = if (progress.peers > 0) null else "Searching for peers"
+                if (entry.error != peersNote) entry.error = peersNote
                 publishStatus()
 
                 if (progress.finished) {
