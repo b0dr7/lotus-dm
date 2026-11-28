@@ -151,7 +151,7 @@ class DownloadForegroundService : Service() {
     }
 
     private fun notify(notification: Notification) {
-        val manager = getSystemService(NotificationManager::class.java)
+        val manager = getSystemService(NotificationManager::class.java) ?: return
         manager.notify(NOTIFICATION_ID, notification)
     }
 
