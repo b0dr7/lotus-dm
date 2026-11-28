@@ -30,6 +30,7 @@ struct AddBody {
 pub fn start(
     preferred_port: u16,
     tx: Sender<AddRequest>,
+    cmd_tx: Sender<BridgeCmd>,
     wake: Arc<dyn Fn() + Send + Sync + 'static>,
 ) -> Option<u16> {
     for offset in 0..10u16 {
@@ -38,13 +39,15 @@ pub fn start(
             continue;
         };
         let tx = tx.clone();
+        let cmd_tx = cmd_tx.clone();
         let wake = Arc::clone(&wake);
         thread::spawn(move || {
             for stream in listener.incoming().flatten() {
                 let tx = tx.clone();
+                let cmd_tx = cmd_tx.clone();
                 let wake = Arc::clone(&wake);
                 thread::spawn(move || {
-                    if serve(stream, &tx) {
+                    if serve(stream, &tx, &cmd_tx) {
                         (wake)();
                     }
                 });
@@ -55,7 +58,25 @@ pub fn start(
     None
 }
 
-fn serve(mut stream: TcpStream, tx: &Sender<AddRequest>) -> bool {
+#[derive(serde::Serialize)]
+pub struct BridgeJob {
+    pub id: String,
+    pub url: String,
+    pub filename: String,
+    pub status: String,
+    pub received: u64,
+    pub total: u64,
+    pub speed: u64,
+}
+
+pub enum BridgeCmd {
+    List { reply: Sender<Vec<BridgeJob>> },
+    Pause { id: String, reply: Sender<bool> },
+    Resume { id: String, reply: Sender<bool> },
+    Cancel { id: String, reply: Sender<bool> },
+}
+
+fn serve(mut stream: TcpStream, tx: &Sender<AddRequest>, cmd_tx: &Sender<BridgeCmd>) -> bool {
     let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
     let _ = stream.set_write_timeout(Some(Duration::from_secs(5)));
 
@@ -121,6 +142,60 @@ fn serve(mut stream: TcpStream, tx: &Sender<AddRequest>) -> bool {
                 return false;
             };
             queue_one(&mut stream, tx, parsed.url, parsed.filename, parsed.quality)
+        }
+        ("GET", "/list") | ("GET", "/status") => {
+            let (reply_tx, reply_rx) = mpsc::channel();
+            if cmd_tx.send(BridgeCmd::List { reply: reply_tx }).is_ok() {
+                match reply_rx.recv_timeout(Duration::from_secs(5)) {
+                    Ok(jobs) => {
+                        let payload = serde_json::to_string(&jobs).unwrap_or_else(|_| "[]".to_string());
+                        respond(&mut stream, 200, &payload);
+                    }
+                    Err(_) => respond(&mut stream, 503, "{\"ok\":false,\"error\":\"timeout\"}"),
+                }
+            } else {
+                respond(&mut stream, 503, "{\"ok\":false,\"error\":\"window closed\"}");
+            }
+            false
+        }
+        ("POST", "/pause") => {
+            let id = query_param(query, "id").unwrap_or_default();
+            let (reply_tx, reply_rx) = mpsc::channel();
+            if cmd_tx.send(BridgeCmd::Pause { id, reply: reply_tx }).is_ok() {
+                match reply_rx.recv_timeout(Duration::from_secs(5)) {
+                    Ok(ok) => respond(&mut stream, 200, &format!("{{\"ok\":{ok}}}")),
+                    Err(_) => respond(&mut stream, 503, "{\"ok\":false,\"error\":\"timeout\"}"),
+                }
+            } else {
+                respond(&mut stream, 503, "{\"ok\":false,\"error\":\"window closed\"}");
+            }
+            false
+        }
+        ("POST", "/resume") => {
+            let id = query_param(query, "id").unwrap_or_default();
+            let (reply_tx, reply_rx) = mpsc::channel();
+            if cmd_tx.send(BridgeCmd::Resume { id, reply: reply_tx }).is_ok() {
+                match reply_rx.recv_timeout(Duration::from_secs(5)) {
+                    Ok(ok) => respond(&mut stream, 200, &format!("{{\"ok\":{ok}}}")),
+                    Err(_) => respond(&mut stream, 503, "{\"ok\":false,\"error\":\"timeout\"}"),
+                }
+            } else {
+                respond(&mut stream, 503, "{\"ok\":false,\"error\":\"window closed\"}");
+            }
+            false
+        }
+        ("POST", "/cancel") => {
+            let id = query_param(query, "id").unwrap_or_default();
+            let (reply_tx, reply_rx) = mpsc::channel();
+            if cmd_tx.send(BridgeCmd::Cancel { id, reply: reply_tx }).is_ok() {
+                match reply_rx.recv_timeout(Duration::from_secs(5)) {
+                    Ok(ok) => respond(&mut stream, 200, &format!("{{\"ok\":{ok}}}")),
+                    Err(_) => respond(&mut stream, 503, "{\"ok\":false,\"error\":\"timeout\"}"),
+                }
+            } else {
+                respond(&mut stream, 503, "{\"ok\":false,\"error\":\"window closed\"}");
+            }
+            false
         }
         _ => {
             respond(&mut stream, 404, "{\"ok\":false,\"error\":\"unknown route\"}");

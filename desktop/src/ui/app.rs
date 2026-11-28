@@ -45,6 +45,7 @@ pub struct LotusApp {
     watch: ClipboardWatch,
     auto_armed: bool,
     bridge_rx: Receiver<bridge::AddRequest>,
+    bridge_cmd_rx: Receiver<bridge::BridgeCmd>,
     bridge_port: Option<u16>,
     convert_msg: Option<String>,
     convert_rx: Option<Receiver<String>>,
@@ -84,11 +85,13 @@ impl LotusApp {
 
         let (event_tx, event_rx) = mpsc::channel();
         let (bridge_tx, bridge_rx) = mpsc::channel();
+        let (bridge_cmd_tx, bridge_cmd_rx) = mpsc::channel();
         let bridge_port = if settings.bridge_enabled {
             let ctx = cc.egui_ctx.clone();
             bridge::start(
                 settings.bridge_port,
                 bridge_tx,
+                bridge_cmd_tx,
                 Arc::new(move || ctx.request_repaint()),
             )
         } else {
@@ -116,6 +119,7 @@ impl LotusApp {
             watch: ClipboardWatch::default(),
             auto_armed: true,
             bridge_rx,
+            bridge_cmd_rx,
             bridge_port,
             convert_msg: None,
             convert_rx: None,
@@ -157,6 +161,60 @@ impl LotusApp {
             }
         }
         self.start_pending();
+    }
+
+    fn drain_bridge_cmds(&mut self) {
+        use bridge::BridgeCmd;
+        while let Ok(cmd) = self.bridge_cmd_rx.try_recv() {
+            match cmd {
+                BridgeCmd::List { reply } => {
+                    let jobs: Vec<bridge::BridgeJob> = self
+                        .queue
+                        .iter()
+                        .map(|j| bridge::BridgeJob {
+                            id: j.id.clone(),
+                            url: j.url.clone(),
+                            filename: j.filename.clone(),
+                            status: j.status.label().to_string(),
+                            received: j.received_bytes,
+                            total: j.total_bytes,
+                            speed: j.speed_bps,
+                        })
+                        .collect();
+                    let _ = reply.send(jobs);
+                }
+                BridgeCmd::Pause { id, reply } => {
+                    let ok = if let Some(c) = self.controls.get(&id) {
+                        c.request_pause();
+                        true
+                    } else {
+                        false
+                    };
+                    let _ = reply.send(ok);
+                }
+                BridgeCmd::Resume { id, reply } => {
+                    let ok = if let Some(c) = self.controls.get(&id) {
+                        c.request_resume();
+                        true
+                    } else if let Some(job) = self.queue.iter().find(|j| j.id == id).cloned() {
+                        lifecycle::spawn_job(&job, &mut self.controls, &self.event_tx);
+                        true
+                    } else {
+                        false
+                    };
+                    let _ = reply.send(ok);
+                }
+                BridgeCmd::Cancel { id, reply } => {
+                    let ok = if let Some(c) = self.controls.get(&id) {
+                        c.request_cancel();
+                        true
+                    } else {
+                        false
+                    };
+                    let _ = reply.send(ok);
+                }
+            }
+        }
     }
 
     fn drain_events(&mut self) {
@@ -552,6 +610,7 @@ impl eframe::App for LotusApp {
         }
 
         self.drain_bridge();
+        self.drain_bridge_cmds();
         self.drain_events();
 
         if let Some(rx) = &self.convert_rx {
