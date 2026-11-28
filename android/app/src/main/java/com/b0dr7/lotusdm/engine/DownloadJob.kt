@@ -50,6 +50,8 @@ data class DownloadJob(
     val awaitingWifi: Boolean = false,
     /** Media pick for video/audio jobs: a height like "1080p" or a format like "mp3". */
     val quality: String? = null,
+    /** Optional auto-start time (ms since epoch); 0 = start immediately. */
+    val startAt: Long = 0L,
 ) {
     val progress: Float
         get() = if (total > 0L) (downloaded.toFloat() / total.toFloat()).coerceIn(0f, 1f) else 0f

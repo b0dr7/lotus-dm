@@ -23,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -75,12 +76,12 @@ class AddActivity : ComponentActivity() {
                 NewDownloadSheet(
                     incoming = link ?: torrent?.toString(),
                     mime = mime,
-                    onConfirm = { url, name, quality ->
+                    onConfirm = { url, name, quality, startAt ->
                         val queued = if (torrent != null) {
                             val copy = copyTorrent(applicationContext, torrent)
                             copy?.let { DownloadEngine.get(applicationContext).addTorrentFile(it) }
                         } else {
-                            DownloadEngine.get(applicationContext).add(url, name, quality)
+                            DownloadEngine.get(applicationContext).add(url, name, quality, startAt)
                         }
                         if (queued != null) {
                             DownloadForegroundService.start(applicationContext)
@@ -104,7 +105,7 @@ class AddActivity : ComponentActivity() {
 private fun NewDownloadSheet(
     incoming: String?,
     mime: String?,
-    onConfirm: (String, String?, String?) -> Unit,
+    onConfirm: (String, String?, String?, Long) -> Unit,
     onCancel: () -> Unit,
 ) {
     val colors = LocalLotusColors.current
@@ -117,6 +118,8 @@ private fun NewDownloadSheet(
     // Media quality for recognised media shares; the default is the FDM-ish
     // middle pick until the user chooses.
     var quality by remember(incoming) { mutableStateOf(DEFAULT_VIDEO_QUALITY) }
+    var delay by remember(incoming) { mutableStateOf(false) }
+    var startIn by remember(incoming) { mutableStateOf("") }
 
     val media = incoming != null && isMediaUrl(incoming)
 
@@ -247,12 +250,35 @@ private fun NewDownloadSheet(
 
             Spacer(Modifier.height(18.dp))
 
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(checked = delay, onCheckedChange = { delay = it })
+                Text("Delay start", color = colors.text, fontSize = 12.5.sp)
+                if (delay) {
+                    Spacer(Modifier.width(8.dp))
+                    OutlinedTextField(
+                        value = startIn,
+                        onValueChange = { startIn = it },
+                        modifier = Modifier.width(72.dp),
+                        placeholder = { Text("min", fontSize = 11.sp) },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = lotusFieldColors(colors.accent, colors.border, colors.muted, colors.text),
+                    )
+                }
+            }
+
             Button(
                 onClick = {
+                    val startAt = if (delay) {
+                        startIn.trim().toLongOrNull()?.let { minutes ->
+                            System.currentTimeMillis() + minutes * 60_000L
+                        } ?: 0L
+                    } else 0L
                     onConfirm(
                         link.trim(),
                         name.trim().takeIf { it.isNotEmpty() },
                         if (media) quality else null,
+                        startAt,
                     )
                 },
                 enabled = usable,

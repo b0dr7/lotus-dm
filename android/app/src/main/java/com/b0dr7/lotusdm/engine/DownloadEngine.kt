@@ -121,6 +121,9 @@ class DownloadEngine private constructor(context: Context) {
         /** Media pick (height like "1080p", format like "mp3"); media jobs only. */
         @Volatile
         var quality: String? = null,
+        /** Optional auto-start time (ms since epoch); 0 = start immediately. */
+        @Volatile
+        var startAt: Long = 0L,
     ) {
         @Volatile
         var speed: Long = 0L
@@ -189,6 +192,7 @@ class DownloadEngine private constructor(context: Context) {
             kind = kind,
             awaitingWifi = awaitingWifi,
             quality = quality,
+            startAt = startAt,
         )
     }
 
@@ -223,7 +227,7 @@ class DownloadEngine private constructor(context: Context) {
      * Queue a link. [name] overrides the name derived from the URL, which is
      * what the "New download" sheet sends when the user edits it.
      */
-    fun add(url: String, name: String? = null, quality: String? = null): DownloadJob? {
+    fun add(url: String, name: String? = null, quality: String? = null, startAt: Long = 0L): DownloadJob? {
         val clean = url.trim()
         if (clean.isEmpty()) return null
         val wanted = sanitizeName(name)
@@ -247,6 +251,7 @@ class DownloadEngine private constructor(context: Context) {
             limit = 0L,
             created = created,
             quality = if (isMediaUrl(clean) && quality != null) quality else null,
+            startAt = if (startAt > 0L) startAt else 0L,
         )
         entries[id] = entry
         persist(entry)
@@ -323,6 +328,13 @@ class DownloadEngine private constructor(context: Context) {
     }
 
     private fun begin(entry: Entry) {
+        if (entry.startAt > 0L && entry.startAt > System.currentTimeMillis()) {
+            entry.state = JobState.QUEUED
+            entry.error = "Scheduled"
+            persist(entry)
+            publishStatus()
+            return
+        }
         entry.run?.cancel()
         entry.state = JobState.RUNNING
         entry.error = null
@@ -349,6 +361,7 @@ class DownloadEngine private constructor(context: Context) {
             if (slots <= 0) break
             if (entry.state != JobState.QUEUED || entry.run != null) continue
             if (entry.retryAt > now) continue
+            if (entry.startAt > 0L && entry.startAt > now) continue
             begin(entry)
             slots--
         }
@@ -1017,6 +1030,7 @@ class DownloadEngine private constructor(context: Context) {
                     .put("kind", entry.kind.name)
                     .put("torrentUri", entry.torrentUri ?: "")
                     .put("quality", entry.quality ?: "")
+                    .put("startAt", entry.startAt)
                 File(entry.dir, META_NAME).writeText(json.toString())
             }
         }
@@ -1067,6 +1081,7 @@ class DownloadEngine private constructor(context: Context) {
                 // restored torrent is re-added from its source on resume.
                 entry.torrentUri = json.optString("torrentUri", "").ifEmpty { null }
                 entry.quality = json.optString("quality", "").ifEmpty { null }
+                entry.startAt = json.optLong("startAt", 0L)
 
                 val segments = json.optJSONArray("segments")
                 if (segments != null && entry.segCount > 0) {
