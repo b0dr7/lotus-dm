@@ -159,10 +159,6 @@ class DownloadEngine private constructor(context: Context) {
         @Volatile
         var run: kotlinx.coroutines.Job? = null
 
-        /** Set while the Wi-Fi gate is holding this job back. */
-        @Volatile
-        var awaitingWifi: Boolean = false
-
         /** Backoff deadline of an automatic retry, 0 when there is none. */
         @Volatile
         var retryAt: Long = 0L
