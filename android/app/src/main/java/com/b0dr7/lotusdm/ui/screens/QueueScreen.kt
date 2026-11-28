@@ -93,6 +93,8 @@ fun QueueScreen() {
     var filter by remember { mutableStateOf(Filter.ALL) }
     var showBatch by remember { mutableStateOf(false) }
     var batchText by remember { mutableStateOf("") }
+    var renameId by remember { mutableStateOf<String?>(null) }
+    var renameText by remember { mutableStateOf("") }
 
     DisposableEffect(engine) {
         engine.observe { updated -> jobs = updated }
@@ -175,6 +177,10 @@ fun QueueScreen() {
             onCancel = { engine.cancel(job.id) },
             onOpen = { openJob(job) },
             onPlay = { engine.play(job.id) },
+            onRename = {
+                renameId = job.id
+                renameText = job.fileName
+            },
             onDelete = {
                 val removed = engine.delete(job.id)
                 if (!removed) message = "Removed the row, but the file was already gone."
@@ -337,6 +343,31 @@ fun QueueScreen() {
             },
         )
     }
+
+    if (renameId != null) {
+        AlertDialog(
+            onDismissRequest = { renameId = null },
+            title = { Text("Rename") },
+            text = {
+                OutlinedTextField(
+                    value = renameText,
+                    onValueChange = { renameText = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    renameId?.let { id -> engine.rename(id, renameText) }
+                    renameId = null
+                }) { Text("Rename") }
+            },
+            dismissButton = {
+                TextButton(onClick = { renameId = null }) { Text("Cancel") }
+            },
+        )
+    }
 }
 
 @Composable
@@ -372,6 +403,7 @@ private fun JobRow(
     onCancel: () -> Unit,
     onOpen: () -> Unit,
     onPlay: () -> Unit,
+    onRename: () -> Unit,
     onDelete: () -> Unit,
     onCycleLimit: () -> Unit,
     onCycleTag: () -> Unit,
@@ -447,6 +479,7 @@ private fun JobRow(
                             TextButton(onClick = onPlay) { Text("Play") }
                         }
                         TextButton(onClick = onOpen, enabled = job.uri != null) { Text("Open") }
+                        TextButton(onClick = onRename) { Text("Rename") }
                         TextButton(onClick = onDelete) { Text("Delete") }
                     }
                 }

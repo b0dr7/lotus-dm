@@ -427,6 +427,15 @@ class DownloadEngine private constructor(context: Context) {
         publishStatus()
     }
 
+    fun rename(id: String, newName: String) {
+        val entry = entries[id] ?: return
+        val clean = newName.trim()
+        if (clean.isEmpty()) return
+        entry.fileName = clean
+        persist(entry)
+        publishStatus()
+    }
+
 
     private fun isOnWifi(): Boolean {
         val manager = appContext.getSystemService(Context.CONNECTIVITY_SERVICE)
