@@ -920,8 +920,8 @@ class DownloadEngine private constructor(context: Context) {
             ).start()
             process.inputStream.bufferedReader().readText()
             val finished = process.waitFor()
-            if (!finished) {
-                throw IOException("yt-dlp exited with ${process.exitValue()}")
+            if (finished != 0) {
+                throw IOException("yt-dlp exited with $finished")
             }
             val finalFile = entry.dir.listFiles()
                 ?.firstOrNull { it.isFile && it.name.startsWith("$base.") }
