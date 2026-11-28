@@ -1,13 +1,3 @@
-//! Plain FTP downloads (`ftp://`).
-//!
-//! The smallest useful slice of FDM's second protocol: one stream, no TLS, no
-//! server-side resume. The payload streams into the same `.part` file the HTTP
-//! engine uses, so pause/resume, cancel, the per-download and global speed
-//! limits and the queue's retry/backoff all behave the same way.
-//!
-//! FTPS (`ftps://` or `AUTH TLS`) is not wired yet: suppaftp's TLS support is
-//! an opt-in cargo feature and belongs in its own slice.
-
 use std::io::{Read, Write};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
@@ -29,21 +19,17 @@ const TICK: Duration = Duration::from_millis(250);
 const PAUSE_POLL: Duration = Duration::from_millis(100);
 const DEFAULT_PORT: u16 = 21;
 
-/// True when the queue URL belongs to this engine.
 pub fn is_ftp(raw: &str) -> bool {
     raw.trim()
         .get(..6)
         .is_some_and(|scheme| scheme.eq_ignore_ascii_case("ftp://"))
 }
 
-/// `ftp://[user[:password]@]host[:port]/path`
 #[derive(Debug, PartialEq, Eq)]
 struct Target {
-    /// `host:port`, the form `FtpStream::connect` takes.
     address: String,
     user: String,
     password: String,
-    /// Absolute path on the server, leading slash included.
     path: String,
 }
 
@@ -62,7 +48,6 @@ impl Target {
             Some((userinfo, host)) => (Some(userinfo), host),
             None => (None, authority),
         };
-        // A bare `ftp://host/` has nothing to fetch.
         if host.is_empty() || path.len() < 2 {
             return None;
         }
@@ -117,7 +102,6 @@ pub(super) fn run(job: DownloadJob, control: Arc<Control>, tx: Sender<Event>) {
         return;
     }
     let _ = stream.transfer_type(FileType::Binary);
-    // SIZE is optional in practice; without it the row shows an unknown total.
     let total = stream.size(target.path.as_str()).unwrap_or(0) as u64;
 
     let mut file = match std::fs::File::create(&part) {
@@ -160,8 +144,6 @@ pub(super) fn run(job: DownloadJob, control: Arc<Control>, tx: Sender<Event>) {
                 cancelled_cleanup(&tx, &job.id, &parts);
                 return;
             }
-            // The data connection stays open while paused, so this resumes the
-            // same stream instead of asking the server for a REST offset.
             emit_state(&tx, &job.id, EngineState::Running);
             last_tick = Instant::now();
             last_bytes = received;
