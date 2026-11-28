@@ -12,6 +12,7 @@ pub mod media;
 pub mod seg_thread;
 pub mod segmented;
 pub mod site_explorer;
+pub mod spider;
 pub mod torrent;
 pub mod worker;
 

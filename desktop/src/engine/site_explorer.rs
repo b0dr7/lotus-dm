@@ -1,8 +1,4 @@
-use std::sync::mpsc::Sender;
-
 use crate::core::queue::DownloadJob;
-
-use super::{emit_state, fail, Control, EngineState, Event};
 
 #[derive(Clone, Debug)]
 pub struct SiteEntry {
@@ -73,7 +69,8 @@ pub fn fetch(url: &str) -> Result<Vec<SiteEntry>, String> {
     Ok(entries)
 }
 
-fn regex_simple(html: &str) -> Vec<String> {
+/// Every `href` value in the page, in document order.
+pub(crate) fn regex_simple(html: &str) -> Vec<String> {
     let mut result = Vec::new();
     let mut rest = html;
     while let Some(start) = rest.find("href=") {

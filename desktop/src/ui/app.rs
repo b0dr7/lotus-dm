@@ -641,7 +641,8 @@ impl eframe::App for LotusApp {
                 if self.site_entries.is_empty() {
                     ui.label(egui::RichText::new("Enter a URL and click Browse.").color(p.muted));
                 } else {
-                    for entry in &self.site_entries {
+                    let entries = self.site_entries.clone();
+                    for entry in &entries {
                         ui.horizontal(|ui| {
                             let icon = if entry.is_dir { "D" } else { "F" };
                             ui.label(format!("{icon} {}", entry.name));
