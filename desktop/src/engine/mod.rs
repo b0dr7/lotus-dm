@@ -6,6 +6,7 @@ use std::thread;
 
 use crate::core::queue::DownloadJob;
 
+pub mod ftp;
 pub mod job;
 pub mod seg_thread;
 pub mod segmented;
@@ -69,11 +70,13 @@ pub enum Event {
 }
 
 /// Hands a queued job to the engine that understands its URL: magnet links,
-/// `.torrent` links and `.torrent` files go to the torrent engine, everything
-/// else to the HTTP engine.
+/// `.torrent` links and `.torrent` files go to the torrent engine, `ftp://`
+/// to the FTP engine, everything else to the HTTP engine.
 pub fn spawn_download(job: DownloadJob, control: Arc<Control>, tx: Sender<Event>) {
     if torrent::is_torrent(&job.url) {
         thread::spawn(move || torrent::worker::run(job, control, tx));
+    } else if ftp::is_ftp(&job.url) {
+        thread::spawn(move || ftp::run(job, control, tx));
     } else {
         thread::spawn(move || worker::run(job, control, tx, 0));
     }

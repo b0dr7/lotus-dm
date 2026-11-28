@@ -10,6 +10,9 @@ serde_json = "1"
 dirs = "6"
 ureq = "2"
 rfd = "0.18.0"
+# FTP engine (see src/engine/ftp). Plain ftp:// only for now, so the TLS
+# features stay off until FTPS is wired.
+suppaftp = { version = "12", default-features = false }
 # BitTorrent engine (see src/engine/torrent). librqbit is async, so it needs a
 # tokio runtime and pulls its own TLS stack for .torrent links.
 librqbit = "9.1"
