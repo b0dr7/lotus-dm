@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,6 +43,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.b0dr7.lotusdm.data.SettingsStore
 import com.b0dr7.lotusdm.engine.DownloadEngine
+import com.b0dr7.lotusdm.engine.isAudioQuality
+import com.b0dr7.lotusdm.engine.isMediaUrl
 import com.b0dr7.lotusdm.service.DownloadForegroundService
 import com.b0dr7.lotusdm.ui.theme.LocalLotusColors
 import com.b0dr7.lotusdm.ui.theme.LotusTheme
@@ -53,6 +56,9 @@ import java.io.File
  * the file name, in the style of AB Download Manager's "New download".
  */
 private const val MIME_TORRENT = "application/x-bittorrent"
+private val VIDEO_QUALITIES = listOf("2160p", "1440p", "1080p", "720p", "480p", "360p", "240p")
+private val AUDIO_FORMATS = listOf("mp3", "aac", "opus", "flac", "wav")
+private const val DEFAULT_VIDEO_QUALITY = "720p"
 
 class AddActivity : ComponentActivity() {
 
@@ -69,12 +75,12 @@ class AddActivity : ComponentActivity() {
                 NewDownloadSheet(
                     incoming = link ?: torrent?.toString(),
                     mime = mime,
-                    onConfirm = { url, name ->
+                    onConfirm = { url, name, quality ->
                         val queued = if (torrent != null) {
                             val copy = copyTorrent(applicationContext, torrent)
                             copy?.let { DownloadEngine.get(applicationContext).addTorrentFile(it) }
                         } else {
-                            DownloadEngine.get(applicationContext).add(url, name)
+                            DownloadEngine.get(applicationContext).add(url, name, quality)
                         }
                         if (queued != null) {
                             DownloadForegroundService.start(applicationContext)
@@ -98,7 +104,7 @@ class AddActivity : ComponentActivity() {
 private fun NewDownloadSheet(
     incoming: String?,
     mime: String?,
-    onConfirm: (String, String?) -> Unit,
+    onConfirm: (String, String?, String?) -> Unit,
     onCancel: () -> Unit,
 ) {
     val colors = LocalLotusColors.current
@@ -108,6 +114,11 @@ private fun NewDownloadSheet(
     var name by remember(incoming) { mutableStateOf(fileNameOf(incoming).orEmpty()) }
     // Until the name is edited by hand it follows the link, like AB DM does.
     var nameTouched by remember(incoming) { mutableStateOf(false) }
+    // Media quality for recognised media shares; the default is the FDM-ish
+    // middle pick until the user chooses.
+    var quality by remember(incoming) { mutableStateOf(DEFAULT_VIDEO_QUALITY) }
+
+    val media = incoming != null && isMediaUrl(incoming)
 
     val usable = isDownloadable(link.trim())
 
@@ -207,12 +218,43 @@ private fun NewDownloadSheet(
                         )
                     }
                 }
+
+                if (media) {
+                    Spacer(Modifier.height(18.dp))
+                    Text(
+                        text = if (isAudioQuality(quality)) "Audio format" else "Video quality",
+                        color = colors.text,
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        (if (isAudioQuality(quality)) AUDIO_FORMATS else VIDEO_QUALITIES)
+                            .forEach { candidate ->
+                                QualityRow(
+                                    label = candidate,
+                                    selected = quality == candidate,
+                                    onClick = { quality = candidate },
+                                    accent = colors.accent,
+                                    text = colors.text,
+                                    muted = colors.muted,
+                                )
+                            }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                }
             }
 
             Spacer(Modifier.height(18.dp))
 
             Button(
-                onClick = { onConfirm(link.trim(), name.trim().takeIf { it.isNotEmpty() }) },
+                onClick = {
+                    onConfirm(
+                        link.trim(),
+                        name.trim().takeIf { it.isNotEmpty() },
+                        if (media) quality else null,
+                    )
+                },
                 enabled = usable,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -246,6 +288,32 @@ private fun lotusFieldColors(
     focusedTextColor = text,
     unfocusedTextColor = text,
 )
+
+@Composable
+private fun QualityRow(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    accent: androidx.compose.ui.graphics.Color,
+    text: androidx.compose.ui.graphics.Color,
+    muted: androidx.compose.ui.graphics.Color,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick }
+            .padding(vertical = 10.dp),
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.weight(1f),
+            color = if (selected) accent else muted,
+            fontSize = 13.5.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+        )
+    }
+}
 
 private fun extractLink(intent: Intent?): String? {
     if (intent == null) return null

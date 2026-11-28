@@ -48,6 +48,8 @@ data class DownloadJob(
     val kind: JobKind = JobKind.HTTP,
     /** True while the Wi-Fi-only gate is holding this job. */
     val awaitingWifi: Boolean = false,
+    /** Media pick for video/audio jobs: a height like "1080p" or a format like "mp3". */
+    val quality: String? = null,
 ) {
     val progress: Float
         get() = if (total > 0L) (downloaded.toFloat() / total.toFloat()).coerceIn(0f, 1f) else 0f

@@ -38,6 +38,26 @@ private const val MIN_SEGMENTED_SIZE = 2L * 1024L * 1024L
 
 private val RETRY_DELAYS = longArrayOf(30_000L, 120_000L, 600_000L)
 
+private val VIDEO_QUALITIES = listOf("2160p", "1440p", "1080p", "720p", "480p", "360p", "240p")
+private val AUDIO_FORMATS = listOf("mp3", "aac", "opus", "flac", "wav")
+private const val DEFAULT_VIDEO_QUALITY = "720p"
+
+/** True for media links the media engine owns: the video/audio hosts FDM-style
+ * downloaders cover (YouTube family + Vimeo). */
+fun isMediaUrl(url: String): Boolean {
+    val lower = url.trim().lowercase()
+    return lower.startsWith("https://www.youtube.com/") ||
+        lower.startsWith("https://youtube.com/") ||
+        lower.startsWith("https://m.youtube.com/") ||
+        lower.startsWith("https://music.youtube.com/") ||
+        lower.startsWith("https://youtube-nocookie.com/") ||
+        lower.startsWith("https://youtu.be/") ||
+        lower.startsWith("https://vimeo.com/")
+}
+
+/** True when a quality pick names an audio format rather than a video height. */
+fun isAudioQuality(quality: String?): Boolean = quality != null && quality in AUDIO_FORMATS
+
 private fun partName(index: Int) = "part$index"
 
 /**
@@ -149,6 +169,10 @@ class DownloadEngine private constructor(context: Context) {
         @Volatile
         var torrentHash: String? = null
 
+        /** Media pick (height like "1080p", format like "mp3"); media jobs only. */
+        @Volatile
+        var quality: String? = null
+
         fun toPublic(): DownloadJob = DownloadJob(
             id = id,
             url = url,
@@ -165,6 +189,7 @@ class DownloadEngine private constructor(context: Context) {
             priority = priority,
             kind = kind,
             awaitingWifi = awaitingWifi,
+            quality = quality,
         )
     }
 
@@ -199,7 +224,7 @@ class DownloadEngine private constructor(context: Context) {
      * Queue a link. [name] overrides the name derived from the URL, which is
      * what the "New download" sheet sends when the user edits it.
      */
-    fun add(url: String, name: String? = null): DownloadJob? {
+    fun add(url: String, name: String? = null, quality: String? = null): DownloadJob? {
         val clean = url.trim()
         if (clean.isEmpty()) return null
         val wanted = sanitizeName(name)
@@ -222,6 +247,7 @@ class DownloadEngine private constructor(context: Context) {
             error = null,
             limit = 0L,
             created = created,
+            quality = if (isMediaUrl(clean) && quality != null) quality else null,
         )
         entries[id] = entry
         persist(entry)
@@ -306,7 +332,7 @@ class DownloadEngine private constructor(context: Context) {
         persist(entry)
         publishStatus()
         entry.run = scope.launch {
-            if (entry.kind == JobKind.TORRENT) torrentDownload(entry) else download(entry)
+            if (entry.kind == JobKind.TORRENT) torrentDownload(entry) else if (entry.quality != null) mediaDownload(entry) else download(entry)
         }
     }
 
@@ -843,6 +869,60 @@ class DownloadEngine private constructor(context: Context) {
         publishStatus()
     }
 
+    /** Media side of the queue: hands off to yt-dlp with the chosen quality. */
+    private suspend fun mediaDownload(entry: Entry) {
+        try {
+            val quality = entry.quality ?: throw IOException("Missing media quality")
+            val isVideo = quality.endsWith('p') && quality.dropLast(1).toIntOrNull() != null
+            val height = quality.removeSuffix("p").toIntOrNull() ?: 720
+            val stem = entry.url.substringBefore('?').substringBefore('#').substringAfterLast('/')
+                .replace(Regex("[^A-Za-z0-9._ -]"), "_").trim()
+            val base = if (isVideo) "${stem}-$height" else stem
+            val formatArg = if (isVideo) "bestvideo[height<={$height}]+bestaudio/best[height<={$height}]" else "bestaudio/best"
+            val args = mutableListOf(
+                "--no-playlist",
+                "-f", formatArg,
+            )
+            if (!isVideo) {
+                args.add("--extract-audio")
+                args.add("--audio-format")
+                args.add(if (isVideo) "mp4" else quality)
+            }
+            args.add("-o")
+            args.add(File(entry.dir, "${base}.%(ext)s").absolutePath)
+            args.add(entry.url)
+
+            val process = ProcessBuilder(
+                File(appContext.filesDir, "yt-dlp").absolutePath,
+                *args.toTypedArray(),
+            ).start()
+            process.inputStream.bufferedReader().readText()
+            val finished = process.waitFor()
+            if (!finished) throw IOException("yt-dlp exited with ${process.exitValue()}")
+            val finalFile = entry.dir.listFiles()
+                ?.firstOrNull { it.isFile && it.name.startsWith("$base.") }
+                ?: throw IOException("yt-dlp did not produce a file")
+            val published = CompletedFileStore.publish(appContext, finalFile, base)
+            if (published == null) throw IOException("Saved, but not in Downloads")
+            entry.uri = published.uri
+            entry.savedPath = published.path
+            entry.fileName = published.displayName
+            entry.state = JobState.COMPLETED
+            entry.speed = 0L
+            entry.downloaded = finalFile.length()
+            entry.total = finalFile.length()
+            entry.error = null
+            persist(entry)
+            publishStatus()
+        } catch (t: Throwable) {
+            if (entry.state == JobState.PAUSED) return
+            handleFailure(entry, t)
+        } finally {
+            entry.run = null
+            pump()
+        }
+    }
+
     private fun onBytes(entry: Entry, count: Long) {
         val now = System.currentTimeMillis()
         synchronized(entry.lock) {
@@ -927,6 +1007,7 @@ class DownloadEngine private constructor(context: Context) {
                     .put("priority", entry.priority.name)
                     .put("kind", entry.kind.name)
                     .put("torrentUri", entry.torrentUri ?: "")
+                    .put("quality", entry.quality ?: "")
                 File(entry.dir, META_NAME).writeText(json.toString())
             }
         }
@@ -976,6 +1057,7 @@ class DownloadEngine private constructor(context: Context) {
                 // The libtorrent session is gone after a restart, so a
                 // restored torrent is re-added from its source on resume.
                 entry.torrentUri = json.optString("torrentUri", "").ifEmpty { null }
+                entry.quality = json.optString("quality", "").ifEmpty { null }
 
                 val segments = json.optJSONArray("segments")
                 if (segments != null && entry.segCount > 0) {
