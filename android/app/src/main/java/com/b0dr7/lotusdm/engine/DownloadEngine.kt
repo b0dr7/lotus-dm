@@ -185,10 +185,24 @@ class DownloadEngine private constructor(context: Context) {
     /** Lazily created; the session only spins up when a torrent is queued. */
     private val torrents by lazy { TorrentClient(appContext) }
 
-    fun add(url: String): DownloadJob? {
+    /** Trims a user-supplied name into something safe to write into Downloads. */
+    private fun sanitizeName(raw: String?): String? {
+        val cleaned = raw
+            ?.trim()
+            ?.replace(Regex("[\\\\/:*?\"<>|]"), "-")
+            ?.trim('-', '.', ' ')
+        return cleaned?.takeIf { it.isNotEmpty() }
+    }
+
+    /**
+     * Queue a link. [name] overrides the name derived from the URL, which is
+     * what the "New download" sheet sends when the user edits it.
+     */
+    fun add(url: String, name: String? = null): DownloadJob? {
         val clean = url.trim()
         if (clean.isEmpty()) return null
-        if (clean.startsWith("magnet:")) return enqueueTorrent(clean, magnetName(clean))
+        val wanted = sanitizeName(name)
+        if (clean.startsWith("magnet:")) return enqueueTorrent(clean, wanted ?: magnetName(clean))
         if (!clean.startsWith("http://") && !clean.startsWith("https://")) return null
 
         val created = System.currentTimeMillis()
@@ -199,7 +213,7 @@ class DownloadEngine private constructor(context: Context) {
         val entry = Entry(
             id = id,
             url = clean,
-            fileName = guessFileName(clean, id),
+            fileName = wanted ?: guessFileName(clean, id),
             dir = dir,
             state = JobState.QUEUED,
             downloaded = 0L,
