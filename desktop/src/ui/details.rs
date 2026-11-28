@@ -159,6 +159,19 @@ pub fn show(ctx: &egui::Context, job: &mut DownloadJob, p: &Palette) -> Outcome 
             };
             ui.label(RichText::new(note).size(11.5).color(p.muted));
 
+            ui.add_space(8.0);
+            ui.label(RichText::new("Filename").color(p.text));
+            ui.add_space(2.0);
+            let mut name = job.filename.clone();
+            let name_response = ui.add(
+                egui::TextEdit::singleline(&mut name)
+                    .desired_width(ui.available_width()),
+            );
+            if name_response.changed() && !name.trim().is_empty() {
+                job.filename = name.trim().to_string();
+                outcome.changed = true;
+            }
+
             ui.add_space(14.0);
             ui.horizontal_wrapped(|ui| {
                 let (label, action, primary) = match job.status {
