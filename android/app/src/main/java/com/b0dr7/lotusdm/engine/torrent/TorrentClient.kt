@@ -113,7 +113,7 @@ class TorrentClient(context: Context) {
                 ?: throw IOException("No metadata came back for this magnet link")
             return TorrentInfo(data)
         }
-        val path = uri.removePrefix("file:
+        val path = uri.removePrefix("file://")
         val file = File(path)
         if (!file.exists() || file.length() == 0L) throw IOException("Torrent file is gone")
         return TorrentInfo(file)

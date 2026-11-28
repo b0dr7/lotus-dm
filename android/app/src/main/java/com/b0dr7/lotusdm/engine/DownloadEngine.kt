@@ -207,6 +207,7 @@ class DownloadEngine private constructor(context: Context) {
         val wanted = sanitizeName(name)
         if (clean.startsWith("magnet:")) return enqueueTorrent(clean, wanted ?: magnetName(clean))
         if (!clean.startsWith("http://") && !clean.startsWith("https://")) return null
+        val created = System.currentTimeMillis()
         val id = "$created-${(1000..9999).random()}"
         val dir = File(partsRoot(), id)
         dir.mkdirs()
