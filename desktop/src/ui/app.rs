@@ -27,7 +27,6 @@ pub struct LotusApp {
     settings: Settings,
     nav: Nav,
     filter: Filter,
-    /// Row whose details panel is open, by job id.
     selected: Option<String>,
     url_input: String,
     queue: Vec<DownloadJob>,
@@ -42,11 +41,9 @@ pub struct LotusApp {
     bridge_rx: Receiver<bridge::AddRequest>,
     bridge_port: Option<u16>,
     light_theme: bool,
-    /// Holds the tray icon alive; dropping it removes the icon.
     _tray: Option<Tray>,
     quitting: bool,
     hidden: bool,
-    /// True once the window has been parked off-screen for the tray.
     parked: bool,
 }
 
@@ -114,7 +111,6 @@ impl LotusApp {
         }
     }
 
-    /// Queue what is typed in the toolbar and start it right away.
     fn submit_url(&mut self) {
         let url = self.url_input.trim().to_string();
         if url.is_empty() {
@@ -131,7 +127,6 @@ impl LotusApp {
         self.url_input.clear();
     }
 
-    /// Links handed over by the browser extension land here.
     fn drain_bridge(&mut self) {
         while let Ok(request) = self.bridge_rx.try_recv() {
             let filename = request
@@ -193,15 +188,12 @@ impl LotusApp {
         }
     }
 
-    /// Tray menu clicks: they arrive once per frame from `ui::tray`.
     fn handle_tray(&mut self, action: TrayAction, ctx: &egui::Context) {
         match action {
             TrayAction::Open => {
                 sys::show_main_window();
                 self.hidden = false;
                 self.parked = false;
-                // The next frame has to be a real one, not whatever was on
-                // screen when the window was parked.
                 ctx.request_repaint();
                 ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
             }
@@ -222,7 +214,6 @@ impl LotusApp {
         }
     }
 
-    /// Pause every download that is currently running.
     fn pause_all(&mut self) {
         for job in self.queue.iter() {
             if job.status == JobStatus::Running {
@@ -233,8 +224,6 @@ impl LotusApp {
         }
     }
 
-    /// Start or resume everything that is not moving: paused jobs resume in
-    /// place when their worker is still alive, and anything queued is spawned.
     fn resume_all(&mut self) {
         for index in 0..self.queue.len() {
             match self.queue[index].status {
@@ -250,8 +239,6 @@ impl LotusApp {
         self.start_pending();
     }
 
-    /// Start everything the concurrency limit has room for. Called every frame,
-    /// so a finished download frees its slot without the user doing anything.
     fn start_pending(&mut self) {
         lifecycle::start_pending(
             &mut self.queue,
@@ -261,8 +248,6 @@ impl LotusApp {
         );
     }
 
-    /// One notification per terminal state, and none for a failure that is
-    /// about to be retried automatically.
     fn notify_finished(&self, id: &str, finished_ok: bool, message: &str) {
         if !self.settings.notifications {
             return;
@@ -410,8 +395,6 @@ impl LotusApp {
             });
     }
 
-    /// Details panel for the selected row. Panels have to be registered before
-    /// the central area, so its buttons are dispatched from here too.
     fn details_panel(&mut self, ctx: &egui::Context, p: &Palette) {
         if !matches!(self.nav, Nav::Home | Nav::Queue) {
             return;
@@ -420,7 +403,6 @@ impl LotusApp {
             return;
         };
         let Some(index) = self.queue.iter().position(|job| job.id == id) else {
-            // The row was cleared while its panel was open.
             self.selected = None;
             return;
         };
@@ -515,7 +497,6 @@ impl eframe::App for LotusApp {
         self.drain_bridge();
         self.drain_events();
 
-        // Close to tray: the window disappears, downloads keep going.
         if ctx.input(|input| input.viewport().close_requested())
             && self.settings.close_to_tray
             && !self.quitting
@@ -526,10 +507,6 @@ impl eframe::App for LotusApp {
             self.parked = true;
         }
         if self.hidden {
-            // Parking leaves the window visible to Windows, so redraws keep
-            // coming and this tick keeps draining engine events: progress,
-            // autostart, retries and the finish/fail notifications. Hiding it
-            // for real would freeze all of that (see core::sys).
             if !self.parked {
                 sys::hide_main_window();
                 self.parked = true;
@@ -537,8 +514,6 @@ impl eframe::App for LotusApp {
             ctx.request_repaint_after(std::time::Duration::from_millis(500));
         }
 
-        // Auto-shutdown: once every job is finished (done or failed) and the
-        // setting is on, close the window.
         if self.settings.auto_shutdown && !self.queue.is_empty() {
             let all_done = self
                 .queue
@@ -563,7 +538,6 @@ impl eframe::App for LotusApp {
             }
         }
 
-        // System mode follows Windows while the window stays open.
         if theme::is_light(self.settings.theme_mode) != self.light_theme {
             self.light_theme = theme::is_light(self.settings.theme_mode);
             theme::apply(self.settings.theme_mode, ctx);
