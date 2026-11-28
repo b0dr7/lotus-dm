@@ -15,6 +15,7 @@ pub mod site_explorer;
 pub mod spider;
 pub mod torrent;
 pub mod worker;
+pub mod zip_partial;
 
 use job::RateLimiter;
 
