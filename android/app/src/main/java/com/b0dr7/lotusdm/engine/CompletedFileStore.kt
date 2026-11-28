@@ -52,6 +52,37 @@ object CompletedFileStore {
         return publishToPrivateStorage(context, source, desiredName)
     }
 
+    fun rename(
+        context: Context,
+        uri: String?,
+        path: String?,
+        newName: String,
+    ): PublishedFile? {
+        if (path != null) {
+            val source = File(path)
+            if (source.exists()) {
+                val target = File(source.parentFile, newName)
+                val clash = target.exists() && target.absolutePath != source.absolutePath
+                if (!clash && runCatching { source.renameTo(target) }.getOrDefault(false)) {
+                    return PublishedFile(providerUri(context, target), target.absolutePath, newName)
+                }
+            }
+        }
+        if (uri != null) {
+            val parsed = runCatching { Uri.parse(uri) }.getOrNull() ?: return null
+            if (parsed.scheme != "content") return null
+            val values = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, newName)
+                put(MediaStore.MediaColumns.MIME_TYPE, mimeFor(newName))
+            }
+            val updated = runCatching {
+                context.contentResolver.update(parsed, values, null, null)
+            }.getOrDefault(0)
+            if (updated > 0) return PublishedFile(uri, null, newName)
+        }
+        return null
+    }
+
     fun delete(context: Context, uri: String, path: String?): Boolean {
         val parsed = runCatching { Uri.parse(uri) }.getOrNull()
         if (parsed != null && parsed.scheme == "content") {

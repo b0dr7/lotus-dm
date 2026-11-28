@@ -96,6 +96,7 @@ fun QueueScreen() {
     var batchText by remember { mutableStateOf("") }
     var renameId by remember { mutableStateOf<String?>(null) }
     var renameText by remember { mutableStateOf("") }
+    var renameError by remember { mutableStateOf<String?>(null) }
     var previewJob by remember { mutableStateOf<DownloadJob?>(null) }
 
     DisposableEffect(engine) {
@@ -184,6 +185,7 @@ fun QueueScreen() {
             onRename = {
                 renameId = job.id
                 renameText = job.fileName
+                renameError = null
             },
             onDelete = {
                 val removed = engine.delete(job.id)
@@ -350,25 +352,56 @@ fun QueueScreen() {
 
     if (renameId != null) {
         AlertDialog(
-            onDismissRequest = { renameId = null },
+            onDismissRequest = {
+                renameId = null
+                renameError = null
+            },
             title = { Text("Rename") },
             text = {
-                OutlinedTextField(
-                    value = renameText,
-                    onValueChange = { renameText = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                )
+                Column {
+                    OutlinedTextField(
+                        value = renameText,
+                        onValueChange = {
+                            renameText = it
+                            renameError = null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        isError = renameError != null,
+                        shape = RoundedCornerShape(12.dp),
+                    )
+                    renameError?.let { text ->
+                        Text(
+                            text = text,
+                            color = colors.muted,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(top = 6.dp),
+                        )
+                    }
+                }
             },
             confirmButton = {
-                TextButton(onClick = {
-                    renameId?.let { id -> engine.rename(id, renameText) }
-                    renameId = null
-                }) { Text("Rename") }
+                TextButton(
+                    enabled = renameText.isNotBlank(),
+                    onClick = {
+                        val id = renameId
+                        if (id != null) {
+                            if (engine.rename(id, renameText)) {
+                                renameId = null
+                                renameError = null
+                            } else {
+                                renameError =
+                                    "Could not rename: use a name without / \\ : * ? \" < > | and make sure the file is still there."
+                            }
+                        }
+                    },
+                ) { Text("Rename") }
             },
             dismissButton = {
-                TextButton(onClick = { renameId = null }) { Text("Cancel") }
+                TextButton(onClick = {
+                    renameId = null
+                    renameError = null
+                }) { Text("Cancel") }
             },
         )
     }

@@ -432,13 +432,20 @@ class DownloadEngine private constructor(context: Context) {
         publishStatus()
     }
 
-    fun rename(id: String, newName: String) {
-        val entry = entries[id] ?: return
-        val clean = newName.trim()
-        if (clean.isEmpty()) return
+    fun rename(id: String, newName: String): Boolean {
+        val entry = entries[id] ?: return false
+        val clean = cleanFileName(newName, entry.fileName) ?: return false
+        if (clean == entry.fileName) return true
+        if (entry.state == JobState.COMPLETED) {
+            val renamed = CompletedFileStore.rename(appContext, entry.uri, entry.savedPath, clean)
+                ?: return false
+            entry.uri = renamed.uri
+            entry.savedPath = renamed.path
+        }
         entry.fileName = clean
         persist(entry)
         publishStatus()
+        return true
     }
 
 

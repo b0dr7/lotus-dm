@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.b0dr7.lotusdm.R
 import com.b0dr7.lotusdm.data.SettingsStore
+import com.b0dr7.lotusdm.ui.screens.HelpScreen
 import com.b0dr7.lotusdm.ui.screens.HomeScreen
 import com.b0dr7.lotusdm.ui.screens.QueueScreen
 import com.b0dr7.lotusdm.ui.screens.SettingsScreen
@@ -42,6 +43,7 @@ private data class Tab(val label: String, val icon: Int)
 private val tabs = listOf(
     Tab("Home", R.drawable.ic_home),
     Tab("Queue", R.drawable.ic_queue),
+    Tab("Help", R.drawable.ic_help),
     Tab("Settings", R.drawable.ic_settings),
 )
 
@@ -60,6 +62,7 @@ fun LotusApp(
         when (selected) {
             0 -> HomeScreen()
             1 -> QueueScreen()
+            2 -> HelpScreen()
             else -> SettingsScreen(
                 mode = mode,
                 onModeChange = onModeChange,
