@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.AtomicLongArray
 private const val META_NAME = "meta.json"
 private const val SINGLE_PART = "part"
 private const val MERGED_NAME = "merged"
-private const val MAX_SEGMENTS = 8
+private const val MAX_SEGMENTS = 16
 private const val MAX_CONCURRENT_DEFAULT = 3
 private const val MIN_SEGMENTED_SIZE = 2L * 1024L * 1024L
 
@@ -65,6 +65,14 @@ class DownloadEngine private constructor(context: Context) {
     private val client = OkHttpClient.Builder()
         .followRedirects(true)
         .followSslRedirects(true)
+        .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+        .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+        .dispatcher(okhttp3.Dispatcher().apply {
+            maxRequests = MAX_SEGMENTS * 2
+            maxRequestsPerHost = MAX_SEGMENTS
+        })
+        .connectionPool(okhttp3.ConnectionPool(16, 5, java.util.concurrent.TimeUnit.MINUTES))
         .build()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val main = Handler(Looper.getMainLooper())
@@ -739,7 +747,7 @@ class DownloadEngine private constructor(context: Context) {
             body.byteStream().use { input ->
                 RandomAccessFile(partFile, "rw").use { raf ->
                     raf.seek(done)
-                    val buffer = ByteArray(32 * 1024)
+                    val buffer = ByteArray(256 * 1024)
                     var windowStart = System.currentTimeMillis()
                     var windowBytes = 0L
 
@@ -804,7 +812,7 @@ class DownloadEngine private constructor(context: Context) {
             body.byteStream().use { input ->
                 RandomAccessFile(part, "rw").use { raf ->
                     raf.seek(startAt)
-                    val buffer = ByteArray(64 * 1024)
+                    val buffer = ByteArray(256 * 1024)
                     var windowStart = System.currentTimeMillis()
                     var windowBytes = 0L
 
