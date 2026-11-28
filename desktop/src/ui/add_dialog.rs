@@ -72,16 +72,16 @@ pub fn add_dialog_window(
                     crate::engine::media::audio_qualities()
                         .iter()
                         .map(|q| q.label.clone())
-                        .collect()
+                        .collect::<Vec<String>>()
                 } else {
                     crate::engine::media::video_qualities()
                         .iter()
                         .map(|q| q.label.clone())
-                        .collect()
+                        .collect::<Vec<String>>()
                 };
                 for candidate in candidates {
                     let selected = dialog.quality.as_deref() == Some(candidate.as_str());
-                    if ui.selectable_button(candidate, selected).clicked() {
+                    if ui.selectable_label(selected, candidate).clicked() {
                         dialog.quality = Some(candidate);
                     }
                 }

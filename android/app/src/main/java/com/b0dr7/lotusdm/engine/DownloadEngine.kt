@@ -2,6 +2,7 @@ package com.b0dr7.lotusdm.engine
 
 import android.content.Context
 import android.media.MediaPlayer
+import android.net.Uri
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Handler
@@ -401,7 +402,8 @@ class DownloadEngine private constructor(context: Context) {
     /** Plays a completed media file through the framework player. */
     fun play(id: String) {
         val entry = entries[id] ?: return
-        val uri = entry.uri ?: return
+        val uriString = entry.uri ?: return
+        val uri = Uri.parse(uriString)
         val player = MediaPlayer.create(appContext, uri) ?: return
         player.start()
     }
