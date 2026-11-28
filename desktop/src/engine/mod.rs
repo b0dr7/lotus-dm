@@ -61,6 +61,11 @@ pub enum Event {
     NoResume {
         id: String,
     },
+    /// The torrent's real name, known once its metadata arrived.
+    Name {
+        id: String,
+        name: String,
+    },
 }
 
 /// Hands a queued job to the engine that understands its URL: magnet links,

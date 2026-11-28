@@ -49,7 +49,8 @@ fn session() -> Result<&'static Arc<Session>, String> {
             std::fs::create_dir_all(&folder)
                 .map_err(|err| format!("cannot create {}: {err}", folder.display()))?;
 
-            let opts = SessionOptions {
+            let policy = super::policy();
+            let mut opts = SessionOptions {
                 // lotus-dm keeps the job list in queue.json, so librqbit's own
                 // session dump would be a second, conflicting source of truth.
                 persistence: None,
@@ -58,6 +59,12 @@ fn session() -> Result<&'static Arc<Session>, String> {
                 client_name_and_version: Some(format!("LotusDM/{}", env!("CARGO_PKG_VERSION"))),
                 ..Default::default()
             };
+            // Peer discovery is session-wide, so it is fixed here rather than
+            // per torrent; `None` is librqbit's way of disabling the DHT.
+            if !policy.dht {
+                opts.dht = None;
+            }
+            opts.disable_local_service_discovery = !policy.lsd;
 
             runtime()?
                 .block_on(Session::new_with_opts(folder, opts))

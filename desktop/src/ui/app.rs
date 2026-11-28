@@ -60,7 +60,7 @@ impl LotusApp {
         theme::apply(settings.theme_mode, &cc.egui_ctx);
         let light_theme = theme::is_light(settings.theme_mode);
         engine::set_global_limit_kbps(settings.global_speed_limit_kbps);
-        engine::torrent::set_encryption(settings.torrent_encryption);
+        engine::torrent::set_policy(settings.torrent_policy());
 
         let mut queue = queue::load();
         for job in queue.iter_mut() {
@@ -164,6 +164,20 @@ impl LotusApp {
                     if let Some(job) = self.queue.iter_mut().find(|job| job.id == id) {
                         job.no_resume = true;
                         changed = true;
+                    }
+                    if changed {
+                        if let Err(err) = queue::save(&self.queue) {
+                            eprintln!("lotusdm: queue save failed: {err}");
+                        }
+                    }
+                }
+                Event::Name { id, name } => {
+                    let mut changed = false;
+                    if let Some(job) = self.queue.iter_mut().find(|job| job.id == id) {
+                        if job.filename != name {
+                            job.filename = name;
+                            changed = true;
+                        }
                     }
                     if changed {
                         if let Err(err) = queue::save(&self.queue) {
