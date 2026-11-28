@@ -40,3 +40,4 @@ pub fn help_panel(ui: &mut egui::Ui, p: &Palette) {
     ui.add_space(16.0);
 
     ui.label(RichText::new("The extension asks for one host permission, http://127.0.0.1/*, and nothing else. It reads the tab you send and the link you right-click. No analytics, no remote code.").color(p.muted).size(12.0));
+}
