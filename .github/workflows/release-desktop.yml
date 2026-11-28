@@ -61,6 +61,50 @@ jobs:
           }
           Get-ChildItem dist | Select-Object Name, Length
 
+      # `winres` only warns when it cannot compile the resources, so an
+      # icon-less exe could ship silently. Explorer, the Start menu shortcut
+      # and Apps & Features all read the icon and version block out of these
+      # two exes, so both are checked before anything is attached.
+      - name: Verify icons
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          Add-Type -AssemblyName System.Drawing
+
+          function IconPixels([string] $path) {
+            $icon = [System.Drawing.Icon]::ExtractAssociatedIcon((Resolve-Path $path).Path)
+            if (-not $icon) { return 0 }
+            $bmp = $icon.ToBitmap()
+            $rect = New-Object System.Drawing.Rectangle(0, 0, $bmp.Width, $bmp.Height)
+            $data = $bmp.LockBits(
+              $rect,
+              [System.Drawing.Imaging.ImageLockMode]::ReadOnly,
+              [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+            $bytes = New-Object byte[] ($data.Stride * $bmp.Height)
+            [System.Runtime.InteropServices.Marshal]::Copy($data.Scan0, $bytes, 0, $bytes.Length)
+            $bmp.UnlockBits($data)
+            $drawn = 0
+            for ($i = 3; $i -lt $bytes.Length; $i += 4) {
+              if ($bytes[$i] -ge 128) { $drawn++ }
+            }
+            $bmp.Dispose()
+            return $drawn
+          }
+
+          $targets = @(
+            "target\x86_64-pc-windows-msvc\release\lotus-dm.exe",
+            "target\i686-pc-windows-msvc\release\lotus-dm.exe",
+            "dist\LotusDM-windows-x64.exe",
+            "dist\LotusDM-windows-x86.exe",
+            "dist\LotusDM-windows-universal.exe"
+          )
+          foreach ($target in $targets) {
+            if (-not (Test-Path $target)) { throw "$target is missing" }
+            $pixels = IconPixels $target
+            Write-Host ("{0}: {1} opaque icon pixels" -f $target, $pixels)
+            if ($pixels -lt 100) { throw "$target has no icon" }
+          }
+
       - name: Attach to release
         uses: softprops/action-gh-release@v2
         with:
