@@ -500,7 +500,7 @@ impl LotusApp {
             self.selected = None;
             return;
         };
-        let outcome = details::show(ctx, &mut self.queue[index], p);
+        let outcome = details::show(ctx, &mut self.queue[index], self.settings.language, p);
         if outcome.close {
             self.selected = None;
         }

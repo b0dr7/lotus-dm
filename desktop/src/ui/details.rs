@@ -2,7 +2,9 @@
 use eframe::egui::{self, RichText, Stroke};
 
 use crate::core::queue::{host_of, DownloadJob, JobStatus};
+use crate::core::settings::Lang;
 use crate::ui::format;
+use crate::ui::i18n::{self, Key};
 use crate::ui::theme::Palette;
 
 pub enum Action {
@@ -46,7 +48,7 @@ pub fn open_file(path: &str) {
     let _ = command.spawn();
 }
 
-pub fn show(ctx: &egui::Context, job: &mut DownloadJob, p: &Palette) -> Outcome {
+pub fn show(ctx: &egui::Context, job: &mut DownloadJob, lang: Lang, p: &Palette) -> Outcome {
     let mut outcome = Outcome {
         action: None,
         changed: false,
@@ -64,9 +66,9 @@ pub fn show(ctx: &egui::Context, job: &mut DownloadJob, p: &Palette) -> Outcome 
         .show(ctx, |ui| {
             ui.add_space(14.0);
             ui.horizontal(|ui| {
-                ui.label(RichText::new("Download").size(15.0).strong().color(p.text));
+                ui.label(RichText::new(i18n::tr(lang, Key::DetailsTitle)).size(15.0).strong().color(p.text));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button("Close").clicked() {
+                    if ui.button(i18n::tr(lang, Key::Close)).clicked() {
                         outcome.close = true;
                     }
                 });
@@ -140,7 +142,7 @@ pub fn show(ctx: &egui::Context, job: &mut DownloadJob, p: &Palette) -> Outcome 
                             egui::Label::new(RichText::new(job.folder.as_str()).color(p.text))
                                 .wrap(),
                         );
-                        if ui.button("Open").clicked() {
+                        if ui.button(i18n::tr(lang, Key::OpenFolder)).clicked() {
                             outcome.action = Some(Action::OpenFolder);
                         }
                     });
@@ -155,7 +157,7 @@ pub fn show(ctx: &egui::Context, job: &mut DownloadJob, p: &Palette) -> Outcome 
                 }
             }
 
-            ui.label(RichText::new("Speed limit for this download").color(p.text));
+            ui.label(RichText::new(i18n::tr(lang, Key::SpeedLimit)).color(p.text));
             ui.add_space(2.0);
             let mut limit = job.speed_limit_kbps;
             let response = ui.add(
@@ -169,16 +171,16 @@ pub fn show(ctx: &egui::Context, job: &mut DownloadJob, p: &Palette) -> Outcome 
                 outcome.changed = true;
             }
             let note = if job.speed_limit_kbps == 0 {
-                "0 means the global limit only."
+                i18n::tr(lang, Key::SpeedLimitNoteGlobal)
             } else if matches!(job.status, JobStatus::Running | JobStatus::Paused) {
-                "Takes effect the next time this download starts."
+                i18n::tr(lang, Key::SpeedLimitNoteNext)
             } else {
-                "Applied when this download starts."
+                i18n::tr(lang, Key::SpeedLimitNoteStart)
             };
             ui.label(RichText::new(note).size(11.5).color(p.muted));
 
             ui.add_space(8.0);
-            ui.label(RichText::new("Filename").color(p.text));
+            ui.label(RichText::new(i18n::tr(lang, Key::Filename)).color(p.text));
             ui.add_space(2.0);
             let mut name = job.filename.clone();
             let name_response = ui.add(
@@ -192,17 +194,17 @@ pub fn show(ctx: &egui::Context, job: &mut DownloadJob, p: &Palette) -> Outcome 
 
             if let Some(quality) = &job.quality {
                 ui.add_space(8.0);
-                ui.label(RichText::new(format!("Quality: {quality}")).color(p.text));
+                ui.label(RichText::new(format!("{}", i18n::tr(lang, Key::QualityLabel).replace("{quality}", quality))).color(p.text));
             }
 
             ui.add_space(14.0);
             ui.horizontal_wrapped(|ui| {
                 let (label, action, primary) = match job.status {
-                    JobStatus::Queued => ("Start", Action::Start, true),
-                    JobStatus::Running => ("Pause", Action::Pause, false),
-                    JobStatus::Paused => ("Resume", Action::Resume, true),
-                    JobStatus::Failed => ("Retry", Action::Start, true),
-                    JobStatus::Done => ("Open folder", Action::OpenFolder, false),
+                    JobStatus::Queued => (i18n::tr(lang, Key::Start), Action::Start, true),
+                    JobStatus::Running => (i18n::tr(lang, Key::Pause), Action::Pause, false),
+                    JobStatus::Paused => (i18n::tr(lang, Key::Resume), Action::Resume, true),
+                    JobStatus::Failed => (i18n::tr(lang, Key::Retry), Action::Start, true),
+                    JobStatus::Done => (i18n::tr(lang, Key::OpenFolder), Action::OpenFolder, false),
                 };
                 let button = if primary {
                     egui::Button::new(RichText::new(label).color(p.bg)).fill(p.accent)
@@ -213,13 +215,13 @@ pub fn show(ctx: &egui::Context, job: &mut DownloadJob, p: &Palette) -> Outcome 
                     outcome.action = Some(action);
                 }
                 if job.status == JobStatus::Done
-                    && ui.button("Open file").clicked()
+                    && ui.button(i18n::tr(lang, Key::OpenFile)).clicked()
                 {
                     outcome.action = Some(Action::OpenFile);
                 }
                 if job.status == JobStatus::Done
                     && crate::engine::convert::available()
-                    && ui.button("Convert").clicked()
+                    && ui.button(i18n::tr(lang, Key::Convert)).clicked()
                 {
                     outcome.action = Some(Action::Convert);
                 }
@@ -230,7 +232,7 @@ pub fn show(ctx: &egui::Context, job: &mut DownloadJob, p: &Palette) -> Outcome 
                 {
                     outcome.action = Some(Action::Cancel);
                 }
-                if job.status != JobStatus::Done && ui.button("Copy link").clicked() {
+                if job.status != JobStatus::Done && ui.button(i18n::tr(lang, Key::CopyLink)).clicked() {
                     ui.ctx().copy_text(job.url.clone());
                 }
             });
