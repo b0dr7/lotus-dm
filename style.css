@@ -1,7 +1,6 @@
-/* Lotus Download Manager website. Simple and flat: sticky header with a
-   gold hairline, one centered hero, quiet tiles for features/downloads,
-   gold rule above section headings, gold only where it acts.
-   8px corners, 42px controls, system fonts, no external resources.
+/* Lotus Download Manager website. Simple and flat: one centered hero,
+   quiet dark tiles for features and downloads, gold only where it acts.
+   4px corners, 40px controls, system fonts, no external resources.
    5 theme token sets (PLAN.md - locked). */
 
 /* ---------- theme tokens ---------- */
@@ -46,7 +45,7 @@ html[data-theme="hc-light"] {
   --tint: rgba(202, 138, 4, 0.18); --tint-border: #CA8A04;
 }
 :root {
-  --radius: 8px;
+  --radius: 4px;
   --tap: 44px;
   --column: 1152px;
   --gap: 24px;
@@ -67,18 +66,6 @@ body {
 main { flex: 1 0 auto; }
 h1, h2, h3 { margin: 0; font-weight: 400; color: var(--text); letter-spacing: -0.01em; }
 p { margin: 0; }
-
-/* ---------- sticky header: brand left, theme button right ---------- */
-.site-header {
-  position: sticky; top: 0; z-index: 30;
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; padding: 7px var(--gutter);
-  background: var(--bg);
-  border-bottom: 1px solid var(--tint-border); /* gold hairline */
-}
-.site-header .mark { gap: 8px; }
-.site-header .mark-ico { width: 22px; height: 22px; }
-.site-header .mark-txt { font-size: 17px; font-weight: 600; letter-spacing: -0.02em; }
 a { color: var(--accent); text-decoration: none; }
 a:hover { color: var(--hover); }
 ::selection { background: var(--tint); color: var(--text); }
@@ -87,11 +74,11 @@ img, svg { max-width: 100%; }
 
 /* ---------- hero ---------- */
 .hero {
-  min-height: min(88svh, 760px);
+  min-height: 100svh;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   text-align: center;
-  padding: clamp(48px, 8vh, 88px) var(--gutter) clamp(36px, 6vh, 64px);
+  padding: clamp(72px, 12vh, 120px) var(--gutter) clamp(48px, 8vh, 88px);
 }
 .mark {
   display: inline-flex; align-items: center; gap: clamp(10px, 1.6vw, 16px);
@@ -100,30 +87,33 @@ img, svg { max-width: 100%; }
 }
 .mark:hover { color: var(--text); }
 .mark img, .mark svg, .mark span { -webkit-user-drag: none; }
+.mark--compact { gap: 8px; margin-bottom: 28px; }
+.mark--compact .mark-ico { width: 26px; height: 26px; }
+.mark--compact .mark-txt { font-size: 19px; letter-spacing: -0.02em; }
 .mark-ico {
-  width: clamp(38px, 5vw, 56px); height: clamp(38px, 5vw, 56px);
+  width: clamp(40px, 6vw, 64px); height: clamp(40px, 6vw, 64px);
   background: var(--accent);
   -webkit-mask: url("assets/lotus.svg") center / contain no-repeat;
   mask: url("assets/lotus.svg") center / contain no-repeat;
 }
-.mark-txt { font-size: clamp(38px, 5.5vw, 60px); font-weight: 600; letter-spacing: -0.035em; }
+.mark-txt { font-size: clamp(40px, 7vw, 72px); font-weight: 600; letter-spacing: -0.035em; }
 .lede {
-  color: var(--text); font-size: clamp(18px, 2vw, 26px);
-  line-height: 1.3; font-weight: 400;
-  max-width: 36em; margin: clamp(16px, 2vw, 24px) auto 0;
+  color: var(--text); font-size: clamp(19px, 2.4vw, 32px);
+  line-height: 1.28; font-weight: 400;
+  max-width: 34em; margin: clamp(18px, 2.6vw, 30px) auto 0;
   text-wrap: balance;
 }
-.socials { display: flex; align-items: center; justify-content: center; gap: 20px; margin: clamp(14px, 2vw, 20px) 0; }
+.socials { display: flex; align-items: center; justify-content: center; gap: 20px; margin: clamp(18px, 2.4vw, 26px) 0; }
 .socials a { color: var(--text); display: inline-flex; }
 .socials a:hover { color: var(--accent); }
 .hero-actions { width: min(360px, 100%); display: flex; flex-direction: column; gap: 12px; }
 
 /* ---------- buttons ---------- */
 .btn {
-  min-height: 42px; display: flex; align-items: center; justify-content: center;
-  padding: 8px 18px; border: 1px solid transparent; border-radius: var(--radius);
+  min-height: 40px; display: flex; align-items: center; justify-content: center;
+  padding: 7px 16px; border: 1px solid transparent; border-radius: var(--radius);
   background: var(--surface); color: var(--text);
-  font: inherit; font-size: 15px; font-weight: 600; letter-spacing: -0.005em;
+  font: inherit; font-size: 16px; font-weight: 500; letter-spacing: -0.005em;
   text-align: center;
 }
 .btn:hover { text-decoration: none; }
@@ -136,7 +126,7 @@ img, svg { max-width: 100%; }
 .split { position: relative; display: flex; }
 .split > .btn, .split > a.btn { flex: 1 1 auto; border-radius: var(--radius) 0 0 var(--radius); }
 .split-toggle {
-  flex: 0 0 auto; width: 42px; min-height: 42px;
+  flex: 0 0 auto; width: 40px; min-height: 40px;
   border: 1px solid var(--tint-border); border-left: 0;
   border-radius: 0 var(--radius) var(--radius) 0;
   background: var(--tint); color: var(--on-accent);
@@ -154,13 +144,13 @@ img, svg { max-width: 100%; }
   visibility: hidden; opacity: 0; transform: translateY(-4px);
   transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
 }
-.split-toggle:hover ~ .split-menu, .split:focus-within .split-menu, .split.open .split-menu {
+.split:hover .split-menu, .split:focus-within .split-menu, .split.open .split-menu {
   visibility: visible; opacity: 1; transform: translateY(0);
 }
 .split-menu a {
-  display: flex; align-items: center; min-height: 42px;
-  padding: 0 12px; border-radius: 6px;
-  color: var(--text); font-size: 15px; font-weight: 600; white-space: nowrap;
+  display: flex; align-items: center; min-height: 38px;
+  padding: 0 12px; border-radius: 3px;
+  color: var(--text); font-size: 15px; font-weight: 500; white-space: nowrap;
 }
 .split-menu a:hover { background: var(--tint); color: var(--text); }
 
@@ -169,26 +159,17 @@ img, svg { max-width: 100%; }
   max-width: var(--column); margin: 0 auto; padding: 0 var(--gutter);
   display: grid; gap: var(--gap); grid-template-columns: 1fr;
 }
-.tile {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 20px 24px;
-}
+.tile { background: var(--surface); border-radius: var(--radius); padding: 20px 24px; }
 .tile h2 { font-size: clamp(22px, 2.4vw, 30px); margin-bottom: 14px; }
 .tile h3 { font-size: clamp(22px, 2.4vw, 30px); margin-bottom: 20px; }
 .tile p { color: var(--text); font-size: 16px; line-height: 1.55; }
 
 /* ---------- downloads ---------- */
-.downloads { max-width: var(--column); margin: 0 auto; padding: clamp(40px, 6vw, 72px) var(--gutter) clamp(40px, 6vw, 64px); }
+.downloads { max-width: var(--column); margin: 0 auto; padding: clamp(56px, 8vw, 96px) var(--gutter) clamp(48px, 7vw, 80px); }
 .downloads > h2 {
   text-align: center; font-size: clamp(28px, 3.6vw, 40px);
-  margin-bottom: clamp(22px, 3vw, 32px);
+  margin-bottom: clamp(28px, 4vw, 44px);
 }
-/* gold rule above section headings */
-.downloads > h2::before, .legal h1::before, .legal h2::before {
-  content: ""; display: block; width: 28px; height: 2px;
-  background: var(--accent); margin-bottom: 14px;
-}
-.downloads > h2::before { margin-left: auto; margin-right: auto; }
 .dl-grid { display: grid; gap: var(--gap); grid-template-columns: 1fr; }
 .dl .note { color: var(--muted); font-size: 14.5px; margin-top: 14px; }
 
@@ -204,14 +185,14 @@ img, svg { max-width: 100%; }
 .site-footer a { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 8px; color: var(--muted); }
 .site-footer a:hover, .site-footer a[aria-current="page"] { color: var(--accent); }
 
-/* ---------- theme menu: one button, in the sticky header ---------- */
-.theme-picker { position: relative; display: flex; }
+/* ---------- theme menu: one button, fixed top right ---------- */
+.theme-picker { position: fixed; top: 12px; right: 12px; z-index: 40; display: flex; }
 .theme-toggle {
   display: inline-flex; align-items: center; gap: 6px;
-  min-height: 42px; padding: 0 12px;
+  min-height: 34px; padding: 0 10px;
   border: 1px solid var(--border); border-radius: var(--radius);
   background: var(--surface); color: var(--text);
-  font: inherit; font-size: 14.5px; font-weight: 600; cursor: pointer;
+  font: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer;
 }
 .theme-toggle:hover { background: var(--tint); border-color: var(--tint-border); }
 .theme-toggle .chev { color: var(--muted); font-size: 9px; }
@@ -224,18 +205,18 @@ img, svg { max-width: 100%; }
   z-index: 30;
 }
 .theme-menu[hidden] { display: none; }
-.theme-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 2px; background: var(--surface2); border-radius: 6px; }
+.theme-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 2px; background: var(--surface2); border-radius: 3px; }
 .mode-btn {
-  min-height: 42px; border: 0; border-radius: 6px;
+  min-height: 30px; border: 0; border-radius: 2px;
   background: transparent; color: var(--muted);
-  font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 500; cursor: pointer;
 }
 .mode-btn:hover { color: var(--text); }
 .mode-btn.on { background: var(--surface); color: var(--accent); box-shadow: 0 0 0 1px var(--border); }
 .theme-opt {
   position: relative; display: flex; align-items: center; justify-content: space-between;
-  gap: 10px; min-height: 42px; padding: 0 6px;
-  border-radius: 6px; font-size: 13.5px; font-weight: 600; color: var(--text); cursor: pointer;
+  gap: 10px; min-height: 32px; padding: 0 4px;
+  border-radius: 3px; font-size: 13px; font-weight: 500; color: var(--text); cursor: pointer;
 }
 .theme-opt:hover { background: var(--tint); }
 .theme-opt[hidden] { display: none; }
@@ -257,7 +238,7 @@ img, svg { max-width: 100%; }
 /* ---------- legal pages ---------- */
 .legal {
   max-width: 720px; margin: 0 auto;
-  padding: clamp(56px, 9vh, 84px) var(--gutter) clamp(40px, 6vw, 64px);
+  padding: clamp(88px, 12vh, 120px) var(--gutter) clamp(48px, 7vw, 72px);
 }
 .legal h1 { font-size: clamp(26px, 3.2vw, 34px); font-weight: 500; margin-bottom: 20px; }
 .legal p { color: var(--text); margin-bottom: 16px; }
@@ -272,7 +253,7 @@ img, svg { max-width: 100%; }
   .tiles, .dl-grid { grid-template-columns: repeat(3, 1fr); }
 }
 @media (pointer: coarse) {
-  .btn, .split-toggle, .theme-toggle, .mode-btn { min-height: var(--tap); }
+  .btn, .split-toggle, .theme-toggle { min-height: var(--tap); }
   .split-toggle { width: var(--tap); }
   .theme-opt, .split-menu a { min-height: 44px; }
 }
