@@ -266,7 +266,7 @@ pub fn list_panel(
                 }
                 shown += 1;
                 let is_selected = selected.as_deref() == Some(job.id.as_str());
-                if row(ui, job, p, error_color, is_selected, controls, tx) {
+                if row(ui, job, lang, p, error_color, is_selected, controls, tx) {
                     clicked = Some(job.id.clone());
                 }
                 ui.add_space(8.0);

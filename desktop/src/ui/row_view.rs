@@ -7,8 +7,10 @@ use eframe::egui::{
 };
 
 use crate::core::queue::{host_of, DownloadJob, JobStatus};
+use crate::core::settings::Lang;
 use crate::engine::{Control, Event};
 use crate::ui::format;
+use crate::ui::i18n::{self, Key};
 use crate::ui::lifecycle;
 use crate::ui::theme::Palette;
 
@@ -20,6 +22,7 @@ const BUTTON_GAP: f32 = 8.0;
 pub fn row(
     ui: &mut egui::Ui,
     job: &DownloadJob,
+    lang: Lang,
     p: &Palette,
     error_color: Color32,
     selected: bool,
@@ -115,7 +118,7 @@ pub fn row(
     }
 
     let band_y = rect.bottom() - PAD - BUTTON_H;
-    let buttons_w = draw_buttons(ui, job, band_y, right, p, controls, tx);
+    let buttons_w = draw_buttons(ui, job, lang, band_y, right, p, controls, tx);
     let percent_w = draw_percent(ui, job, band_y, right - buttons_w - 10.0, p);
     draw_progress_bar(
         ui,
@@ -152,6 +155,7 @@ fn draw_percent(
 fn draw_buttons(
     ui: &mut egui::Ui,
     job: &DownloadJob,
+    lang: Lang,
     band_y: f32,
     right: f32,
     p: &Palette,
@@ -166,9 +170,10 @@ fn draw_buttons(
     let mut widths = Vec::with_capacity(actions.len());
     let mut total = 0.0f32;
     for (label, _) in &actions {
+        let shown = action_text(lang, label);
         let w = ui
             .painter()
-            .layout_no_wrap(label.to_string(), font.clone(), p.text)
+            .layout_no_wrap(shown.to_string(), font.clone(), p.text)
             .size()
             .x
             + 18.0;
@@ -206,7 +211,7 @@ fn draw_buttons(
         ui.painter().text(
             rect.center(),
             Align2::CENTER_CENTER,
-            *label,
+            action_text(lang, label),
             font.clone(),
             text_color,
         );
@@ -255,7 +260,17 @@ fn draw_progress_bar(
         .rect_filled(fill, CornerRadius::same(4), p.accent);
 }
 
-fn actions_for(status: JobStatus) -> Vec<(&'static str, bool)> {
+fn action_text(lang: Lang, label: &str) -> &'static str {
+    match label {
+        "Start" => i18n::tr(lang, Key::Start),
+        "Pause" => i18n::tr(lang, Key::Pause),
+        "Resume" => i18n::tr(lang, Key::Resume),
+        "Cancel" => i18n::tr(lang, Key::Cancel),
+        "Open folder" => i18n::tr(lang, Key::OpenFolder),
+        "Retry" => i18n::tr(lang, Key::Retry),
+        _ => label,
+    }
+}
     match status {
         JobStatus::Queued => vec![("Start", true)],
         JobStatus::Running => vec![("Pause", false), ("Cancel", false)],
