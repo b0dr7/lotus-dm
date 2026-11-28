@@ -28,6 +28,9 @@ class TorrentClient(context: Context) {
 
     private val lock = Any()
     private val infos = HashMap<String, TorrentInfo>()
+
+    /** Hashes whose handle has actually been seen, see [status]. */
+    private val live = HashSet<String>()
     private var started = false
 
     data class Added(val hash: String, val name: String, val total: Long)
@@ -71,14 +74,22 @@ class TorrentClient(context: Context) {
         return Added(hash, name, total)
     }
 
-    /** Null once the torrent is no longer in the session. */
+    /**
+     * Null once the torrent is no longer in the session. A handle that was
+     * alive and then vanished is gone for good, so the caller retries; a
+     * handle that was never seen yet (the poll right after adding) still gets
+     * a zero snapshot instead of a spurious failure.
+     */
     fun status(hash: String): TorrentProgress? {
         val info = synchronized(lock) { infos[hash] } ?: return null
-        val handle = runCatching { manager.find(info) }.getOrNull()
-        val status = handle?.let { runCatching { it.status() }.getOrNull() }
-            ?: return TorrentProgress(0L, runCatching { info.totalSize() }.getOrDefault(0L), 0L, 0, false)
-
         val declared = runCatching { info.totalSize() }.getOrDefault(0L)
+        val status = handle(info)?.let { runCatching { it.status() }.getOrNull() }
+        if (status == null) {
+            val wasLive = synchronized(lock) { live.remove(hash) }
+            return if (wasLive) null else TorrentProgress(0L, declared, 0L, 0, false)
+        }
+        synchronized(lock) { live.add(hash) }
+
         return TorrentProgress(
             downloaded = status.totalDone(),
             total = if (declared > 0L) declared else status.totalDone(),
@@ -106,7 +117,10 @@ class TorrentClient(context: Context) {
 
     /** Drops the torrent from the session; files are left for the caller. */
     fun remove(hash: String) {
-        val info = synchronized(lock) { infos.remove(hash) } ?: return
+        val info = synchronized(lock) {
+            live.remove(hash)
+            infos.remove(hash)
+        } ?: return
         val handle = handle(info) ?: return
         runCatching { manager.remove(handle) }
     }

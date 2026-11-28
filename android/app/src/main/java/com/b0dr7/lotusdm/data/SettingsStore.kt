@@ -73,6 +73,13 @@ class SettingsStore(context: Context) {
             prefs.edit().putInt(KEY_CONCURRENT, value.coerceIn(1, 8)).apply()
         }
 
+    /** Pick the saved queue back up after the phone reboots. */
+    var launchAtStartup: Boolean
+        get() = prefs.getBoolean(KEY_BOOT, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_BOOT, value).apply()
+        }
+
     private companion object {
         const val PREFS = "lotus-settings"
         const val KEY_THEME = "theme_mode"
@@ -81,5 +88,6 @@ class SettingsStore(context: Context) {
         const val KEY_WIFI_ONLY = "wifi_only"
         const val KEY_NOTIFY = "notify_results"
         const val KEY_CONCURRENT = "max_concurrent"
+        const val KEY_BOOT = "launch_at_startup"
     }
 }
