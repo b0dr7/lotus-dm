@@ -11,6 +11,9 @@ pub struct AddDialog {
     /// Media pick for video/audio jobs: a height like `1080p` or a format like `mp3`.
     /// None keeps the engine default (720p video / mp3 audio).
     pub quality: Option<String>,
+    /// Delay the start by this many minutes (None/empty = start immediately).
+    pub start_in: String,
+    pub delay: bool,
 }
 
 pub fn add_dialog_window(
@@ -83,6 +86,14 @@ pub fn add_dialog_window(
                     }
                 }
             }
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut dialog.delay, "Delay start");
+                if dialog.delay {
+                    ui.label("by (minutes)");
+                    ui.add_sized([72.0, 26.0], egui::TextEdit::singleline(&mut dialog.start_in));
+                }
+            });
             ui.add_space(12.0);
             ui.horizontal(|ui| {
                 let can_submit = !dialog.url.trim().is_empty();
@@ -124,8 +135,25 @@ pub fn add_dialog_window(
         } else {
             None
         };
+        let start_at = if dialog.delay {
+            dialog
+                .start_in
+                .trim()
+                .parse::<u32>()
+                .ok()
+                .map(|minutes| {
+                    let now = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_millis() as u64;
+                    now + (minutes as u64) * 60_000
+                })
+        } else {
+            None
+        };
         let mut job = DownloadJob::new_queued(url, filename, folder);
         job.quality = quality;
+        job.start_at = start_at;
         queue.push(job);
         if let Err(err) = save(queue) {
             eprintln!("lotusdm: queue save failed: {err}");

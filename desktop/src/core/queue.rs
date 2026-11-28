@@ -45,6 +45,9 @@ pub struct DownloadJob {
     /// audio format such as `mp3`. None for plain / torrent / ftp jobs.
     #[serde(default)]
     pub quality: Option<String>,
+    /// Optional auto-start time (ms since epoch). None = start immediately.
+    #[serde(default)]
+    pub start_at: Option<u64>,
     #[serde(skip)]
     pub speed_bps: u64,
 }
@@ -63,6 +66,7 @@ impl DownloadJob {
             no_resume: false,
             speed_limit_kbps: 0,
             quality: None,
+            start_at: None,
             speed_bps: 0,
         }
     }

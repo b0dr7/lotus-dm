@@ -108,6 +108,16 @@ pub fn start_pending(
         if queue[index].status != JobStatus::Queued {
             continue;
         }
+        // Scheduled jobs wait for their start time.
+        if let Some(start) = queue[index].start_at {
+            let now_ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0);
+            if start > now_ms {
+                continue;
+            }
+        }
         let job = queue[index].clone();
         if spawn_job(&job, controls, tx) {
             queue[index].status = JobStatus::Running;
