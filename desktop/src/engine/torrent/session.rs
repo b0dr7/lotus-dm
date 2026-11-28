@@ -1,16 +1,3 @@
-//! One process-wide librqbit session shared by every torrent job.
-//!
-//! librqbit is async, so the session lives on its own tokio runtime that is
-//! created once and kept for the lifetime of the app. Callers stand on a
-//! plain queue thread and block on that runtime; never call into this module
-//! from inside it (that would panic on a nested `block_on`).
-//!
-//! rqbit reads the encryption mode, the DHT and LSD switches only when it
-//! builds a session, so a settings change would need an app restart. Instead
-//! the session is rebuilt as soon as nothing is running: at once from the
-//! settings panel, or before the next torrent, while a download in flight
-//! keeps what it started with.
-
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock, PoisonError};
 use std::time::Duration;
@@ -23,26 +10,20 @@ use super::rqbitapi::{
 use super::intake::TorrentSource;
 use super::{EncryptionMode, Policy};
 
-/// Adding a magnet waits for metadata; without peers that never arrives, so
-/// give up instead of parking a queue thread forever.
 const ADD_TIMEOUT: Duration = Duration::from_secs(120);
 
-/// The session-wide policy: everything rqbit only reads at session start.
 type Key = (EncryptionMode, bool, bool);
 
 fn key(policy: &Policy) -> Key {
     (policy.encryption, policy.dht, policy.lsd)
 }
 
-/// The live session, what it was built with, and how many torrents depend on
-/// it. A session may only be replaced while `live` is 0.
 struct Engine {
     session: Arc<Session>,
     key: Key,
     live: usize,
 }
 
-/// The runtime is kept across rebuilds; only the session is recreated.
 static RUNTIME: OnceLock<Result<tokio::runtime::Runtime, String>> = OnceLock::new();
 static ENGINE: Mutex<Option<Engine>> = Mutex::new(None);
 
@@ -63,15 +44,10 @@ fn engine() -> MutexGuard<'static, Option<Engine>> {
     ENGINE.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-/// True when a session built with `running` cannot serve `policy` and nothing
-/// is using it, so replacing it would not interrupt a download.
 fn replaceable(running: Key, live: usize, policy: &Policy) -> bool {
     running != key(policy) && live == 0
 }
 
-/// True when `policy` differs from what the running session was built with.
-/// Called on every settings change, so it never waits for a rebuild in flight:
-/// the next torrent re-checks the policy anyway, so nothing is missed.
 pub fn policy_changed(policy: &Policy) -> bool {
     match ENGINE.try_lock() {
         Ok(slot) => slot
@@ -81,11 +57,7 @@ pub fn policy_changed(policy: &Policy) -> bool {
     }
 }
 
-/// Create a session for `policy`. `None` is librqbit's way of disabling the
-/// DHT; the other two switches have plain booleans.
 fn start(policy: &Policy) -> Result<Arc<Session>, String> {
-    // librqbit's own state (piece checks for fastresume), not the downloads:
-    // every torrent brings its own output folder.
     let folder = crate::core::settings::settings_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join("torrent");
@@ -93,10 +65,7 @@ fn start(policy: &Policy) -> Result<Arc<Session>, String> {
         .map_err(|err| format!("cannot create {}: {err}", folder.display()))?;
 
     let mut opts = SessionOptions {
-        // lotus-dm keeps the job list in queue.json, so librqbit's own session
-        // dump would be a second, conflicting source of truth.
         persistence: None,
-        // Re-check existing pieces instead of re-downloading them.
         fastresume: true,
         client_name_and_version: Some(format!("LotusDM/{}", env!("CARGO_PKG_VERSION"))),
         ..Default::default()
@@ -112,9 +81,6 @@ fn start(policy: &Policy) -> Result<Arc<Session>, String> {
         .map_err(|err| format!("cannot start the torrent engine: {err:#}"))
 }
 
-/// Stop `old` and start a session for `policy` in its place. Stopping releases
-/// the listen socket, so the new session has to bind the same port back; that
-/// can lose a race with the closing socket, hence the retries.
 fn restart(old: Engine, policy: &Policy) -> Result<Engine, String> {
     runtime()?.block_on(old.session.stop());
     let mut err = String::from("cannot start the torrent engine");
@@ -128,12 +94,8 @@ fn restart(old: Engine, policy: &Policy) -> Result<Engine, String> {
     Err(err)
 }
 
-/// A session lent to a new torrent and counted as live until that torrent is
-/// forgotten, so a rebuild cannot stop it mid-add. Dropping the lease without
-/// handing it over releases the count again, which is what a failed add does.
 struct Lease {
     session: Arc<Session>,
-    /// Set once the queue owns the torrent; `forget` releases the count then.
     handed_over: bool,
 }
 
@@ -149,12 +111,6 @@ impl Drop for Lease {
     }
 }
 
-/// The session to use for a new torrent, rebuilt first when the policy says so
-/// and counted as live before the lock is released.
-///
-/// The lock is held across the rebuild so two queue threads cannot start
-/// competing sessions; the other callers are torrent threads that only take it
-/// for a moment.
 fn acquire(policy: &Policy) -> Result<Lease, String> {
     let mut slot = engine();
     let stale = match slot.as_ref() {
@@ -179,7 +135,6 @@ fn acquire(policy: &Policy) -> Result<Lease, String> {
     Ok(Lease { session: running.session.clone(), handed_over: false })
 }
 
-/// The session holding the torrents that are already running.
 fn current() -> Result<Arc<Session>, String> {
     engine()
         .as_ref()
@@ -187,11 +142,6 @@ fn current() -> Result<Arc<Session>, String> {
         .ok_or_else(|| "the torrent engine is not running".to_string())
 }
 
-/// Rebuild an idle session after a policy change, so the next torrent and the
-/// next incoming connection use the new mode without an app restart. No
-/// session yet stays lazy: creating one here would open the listen socket and
-/// the DHT on a settings click. A failed rebuild is left for the next torrent
-/// to retry and report.
 pub fn refresh_policy() {
     let policy = super::policy();
     let mut slot = engine();
@@ -205,12 +155,9 @@ pub fn refresh_policy() {
     *slot = restart(old, &policy).ok();
 }
 
-/// Add a torrent into `folder` and wait until its metadata is known.
 pub fn add(source: &TorrentSource, folder: &str) -> Result<Arc<ManagedTorrent>, String> {
     let mut lease = acquire(&super::policy())?;
     let opts = AddTorrentOptions {
-        // The queue decides what to download, and resuming or re-adding an
-        // already complete torrent needs overwriting.
         overwrite: true,
         output_folder: Some(folder.to_string()),
         ..Default::default()
@@ -236,8 +183,6 @@ pub fn add(source: &TorrentSource, folder: &str) -> Result<Arc<ManagedTorrent>, 
             return Err("torrent was listed only, nothing to download".into());
         }
     };
-    // From here until `forget` this torrent must not have its engine swapped
-    // out from under it, so the lease stays counted instead of released.
     lease.handed_over = true;
     Ok(torrent)
 }
@@ -254,9 +199,6 @@ pub fn resume(torrent: &Arc<ManagedTorrent>) -> Result<(), String> {
         .map_err(|err| format!("cannot resume torrent: {err:#}"))
 }
 
-/// Drop the torrent from the session but keep what was downloaded, so the
-/// queue can resume or retry it later. This also releases the session for a
-/// rebuild, which is why the count is decremented even if the delete failed.
 pub fn forget(torrent: &Arc<ManagedTorrent>) -> Result<(), String> {
     let id = TorrentIdOrHash::Id(torrent.id());
     let result = runtime()?
@@ -286,11 +228,8 @@ mod tests {
 
         let plaintext = (EncryptionMode::Disabled, true, true);
         assert!(replaceable(plaintext, 0, &wanted));
-        // A changed mode does not justify pulling the session out from under a
-        // download that is already using it.
         assert!(!replaceable(plaintext, 2, &wanted));
 
-        // The DHT and LSD switches are as session-wide as the encryption mode.
         assert!(replaceable(same, 0, &Policy { dht: false, ..wanted }));
         assert!(replaceable(same, 0, &Policy { lsd: false, ..wanted }));
     }
