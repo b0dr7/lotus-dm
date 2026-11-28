@@ -77,7 +77,7 @@ pub fn add_dialog_window(
                 };
                 for candidate in candidates {
                     let selected = dialog.quality.as_deref() == Some(candidate.as_str());
-                    if ui.selectable_label(selected, candidate).clicked() {
+                    if ui.selectable_label(selected, candidate.clone()).clicked() {
                         dialog.quality = Some(candidate);
                     }
                 }
