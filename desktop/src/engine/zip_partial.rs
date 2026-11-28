@@ -254,7 +254,12 @@ fn parse_central_directory(bytes: &[u8]) -> Vec<ZipEntry> {
 }
 
 fn safe_name(name: &str) -> Result<String, String> {
-    let base = name.rsplit('/').next().unwrap_or(name).trim();
+    for part in name.split(['/', '\\']) {
+        if part == ".." || part == "." {
+            return Err(format!("unsafe entry name: {name}"));
+        }
+    }
+    let base = name.rsplit(['/', '\\']).next().unwrap_or(name).trim();
     if base.is_empty() || base == "." || base == ".." || base.contains('\\') || base.contains(':') {
         return Err(format!("unsafe entry name: {name}"));
     }
