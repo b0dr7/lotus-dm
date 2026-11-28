@@ -7,27 +7,33 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Surface
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -43,7 +49,8 @@ import java.io.File
 
 /**
  * Receives links from browsers (ACTION_VIEW) and the share sheet
- * (ACTION_SEND). Nothing starts until the button here is pressed.
+ * (ACTION_SEND) and asks before downloading: a bottom sheet with the link and
+ * the file name, in the style of AB Download Manager's "New download".
  */
 private const val MIME_TORRENT = "application/x-bittorrent"
 
@@ -59,15 +66,15 @@ class AddActivity : ComponentActivity() {
         setContent {
             val store = remember { SettingsStore(applicationContext) }
             LotusTheme(mode = store.themeMode) {
-                AddScreen(
-                    link = link ?: torrent?.toString(),
+                NewDownloadSheet(
+                    incoming = link ?: torrent?.toString(),
                     mime = mime,
-                    onConfirm = {
+                    onConfirm = { url, name ->
                         val queued = if (torrent != null) {
                             val copy = copyTorrent(applicationContext, torrent)
                             copy?.let { DownloadEngine.get(applicationContext).addTorrentFile(it) }
                         } else {
-                            link?.let { DownloadEngine.get(applicationContext).add(it) }
+                            DownloadEngine.get(applicationContext).add(url, name)
                         }
                         if (queued != null) {
                             DownloadForegroundService.start(applicationContext)
@@ -86,120 +93,159 @@ class AddActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddScreen(
-    link: String?,
+private fun NewDownloadSheet(
+    incoming: String?,
     mime: String?,
-    onConfirm: () -> Unit,
+    onConfirm: (String, String?) -> Unit,
     onCancel: () -> Unit,
 ) {
     val colors = LocalLotusColors.current
-    val valid = link != null
+    val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    // Cover displays of flip phones are short and narrow: scroll instead of
-    // clipping, and keep the card from stretching on a tablet.
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .imePadding(),
-        contentAlignment = Alignment.Center,
+    var link by remember(incoming) { mutableStateOf(incoming.orEmpty()) }
+    var name by remember(incoming) { mutableStateOf(fileNameOf(incoming).orEmpty()) }
+    // Until the name is edited by hand it follows the link, like AB DM does.
+    var nameTouched by remember(incoming) { mutableStateOf(false) }
+
+    val usable = isDownloadable(link.trim())
+
+    ModalBottomSheet(
+        onDismissRequest = onCancel,
+        sheetState = state,
+        containerColor = colors.surface,
+        contentColor = colors.text,
+        scrimColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.55f),
+        tonalElevation = 0.dp,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        dragHandle = {
+            BottomSheetDefaults.DragHandle(
+                width = 38.dp,
+                color = colors.border,
+            )
+        },
     ) {
-    Column(
-        modifier = Modifier
-            .widthIn(max = 560.dp)
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(
-            text = if (valid) "Add to Lotus DM" else "Nothing to download",
-            color = colors.text,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Spacer(Modifier.height(10.dp))
-        Text(
-            text = if (valid) {
-                "This link was handed to Lotus DM by another app."
-            } else {
-                "That share did not contain a link or a .torrent file."
-            },
-            color = colors.muted,
-            fontSize = 13.sp,
-        )
-
-        Spacer(Modifier.height(18.dp))
-
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
-            color = colors.surface,
-            border = BorderStroke(1.dp, colors.border),
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .imePadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 18.dp),
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = fileNameOf(link) ?: "-",
+                    text = "New download",
                     color = colors.text,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
                 )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = link ?: "-",
-                    color = colors.muted,
-                    fontSize = 12.sp,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (mime != null) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = mime,
-                        color = colors.muted,
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = onCancel) {
+                    Text("Close", color = colors.muted, fontSize = 13.sp)
                 }
             }
+            Text(
+                text = if (incoming != null) {
+                    "Sent here by another app. Nothing downloads until you press Download."
+                } else {
+                    "That share did not contain a link or a .torrent file."
+                },
+                color = colors.muted,
+                fontSize = 12.5.sp,
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            Column(
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                OutlinedTextField(
+                    value = link,
+                    onValueChange = {
+                        link = it
+                        if (!nameTouched) name = fileNameOf(it).orEmpty()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Link", fontSize = 12.sp) },
+                    singleLine = true,
+                    maxLines = 1,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = lotusFieldColors(colors.accent, colors.border, colors.muted, colors.text),
+                )
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = {
+                        name = it
+                        nameTouched = true
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Name", fontSize = 12.sp) },
+                    singleLine = true,
+                    maxLines = 1,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = lotusFieldColors(colors.accent, colors.border, colors.muted, colors.text),
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Saves to Downloads/LotusDM",
+                        color = colors.muted,
+                        fontSize = 12.sp,
+                    )
+                    if (mime != null) {
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            text = mime,
+                            color = colors.muted,
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(18.dp))
+
+            Button(
+                onClick = { onConfirm(link.trim(), name.trim().takeIf { it.isNotEmpty() }) },
+                enabled = usable,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = colors.accent,
+                    contentColor = colors.onAccent,
+                ),
+            ) {
+                Text(if (usable) "Download" else "Nothing to download", fontWeight = FontWeight.SemiBold)
+            }
+
+            TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
+                Text("Cancel", color = colors.muted, fontSize = 13.sp)
+            }
         }
-
-        Spacer(Modifier.height(20.dp))
-
-        Button(
-            onClick = onConfirm,
-            enabled = valid,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = colors.accent,
-                contentColor = colors.onAccent,
-            ),
-        ) {
-            Text("Start download", fontWeight = FontWeight.SemiBold)
-        }
-
-        Spacer(Modifier.height(6.dp))
-
-        TextButton(
-            onClick = onCancel,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Cancel", color = colors.muted)
-        }
-
-        Spacer(Modifier.height(12.dp))
-        Text(
-            text = "Nothing is queued until you press Start download.",
-            color = colors.muted,
-            fontSize = 12.sp,
-        )
-    }
     }
 }
+
+@Composable
+private fun lotusFieldColors(
+    accent: androidx.compose.ui.graphics.Color,
+    border: androidx.compose.ui.graphics.Color,
+    muted: androidx.compose.ui.graphics.Color,
+    text: androidx.compose.ui.graphics.Color,
+) = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = accent,
+    unfocusedBorderColor = border,
+    focusedLabelColor = accent,
+    unfocusedLabelColor = muted,
+    cursorColor = accent,
+    focusedTextColor = text,
+    unfocusedTextColor = text,
+)
 
 private fun extractLink(intent: Intent?): String? {
     if (intent == null) return null

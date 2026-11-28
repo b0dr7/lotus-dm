@@ -32,7 +32,8 @@
             android:name=".AddActivity"
             android:exported="true"
             android:label="Add to Lotus DM"
-            android:theme="@style/Theme.LotusDM">
+            android:theme="@style/Theme.LotusDM.Sheet"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
