@@ -8,6 +8,7 @@ use crate::core::queue::DownloadJob;
 
 pub mod ftp;
 pub mod job;
+pub mod media;
 pub mod seg_thread;
 pub mod segmented;
 pub mod torrent;
@@ -77,6 +78,8 @@ pub fn spawn_download(job: DownloadJob, control: Arc<Control>, tx: Sender<Event>
         thread::spawn(move || torrent::worker::run(job, control, tx));
     } else if ftp::is_ftp(&job.url) {
         thread::spawn(move || ftp::run(job, control, tx));
+    } else if media::is_media(&job.url) {
+        thread::spawn(move || media::run(job, control, tx));
     } else {
         thread::spawn(move || worker::run(job, control, tx, 0));
     }

@@ -32,15 +32,6 @@ pub fn open_folder(folder: &str) {
     let _ = command.spawn();
 }
 
-pub fn open_folder(folder: &str) {
-    #[cfg(windows)]
-    let mut command = std::process::Command::new("explorer");
-    #[cfg(not(windows))]
-    let mut command = std::process::Command::new("xdg-open");
-    command.arg(folder);
-    let _ = command.spawn();
-}
-
 pub fn show(ctx: &egui::Context, job: &mut DownloadJob, p: &Palette) -> Outcome {
     let mut outcome = Outcome {
         action: None,

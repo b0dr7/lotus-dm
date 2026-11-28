@@ -41,6 +41,10 @@ pub struct DownloadJob {
     pub no_resume: bool,
     #[serde(default)]
     pub speed_limit_kbps: u64,
+    /// Media pick for video/audio jobs: a video height such as `1080p` or an
+    /// audio format such as `mp3`. None for plain / torrent / ftp jobs.
+    #[serde(default)]
+    pub quality: Option<String>,
     #[serde(skip)]
     pub speed_bps: u64,
 }
@@ -58,6 +62,7 @@ impl DownloadJob {
             error: None,
             no_resume: false,
             speed_limit_kbps: 0,
+            quality: None,
             speed_bps: 0,
         }
     }
