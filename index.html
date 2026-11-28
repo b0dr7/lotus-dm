@@ -4,100 +4,130 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>(function(){var t=null;try{t=localStorage.getItem("lotus-theme-dm")}catch(e){}
-if(t!=="dark"&&t!=="light"&&t!=="amoled"&&t!=="hc"){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches)?"light":"dark"}
+if(t!=="dark"&&t!=="light"&&t!=="amoled"&&t!=="hc"&&t!=="hc-light"){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches)?"light":"dark"}
 document.documentElement.setAttribute("data-theme",t)})();</script>
 <title>Lotus Download Manager</title>
-<meta name="description" content="Fast, free download manager for Windows and Android. Multi-segment, resumable, zero telemetry.">
+<meta name="description" content="Lotus is a free download manager for Windows and Android. Eight parallel segments per file, with downloads that resume where they stopped.">
 <link rel="icon" href="assets/lotus.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header class="site-header">
-  <a class="brand" href="./"><span class="logo" aria-hidden="true"></span><span>Lotus Download Manager</span></a>
-  <nav class="nav" aria-label="Main">
-    <a href="./" aria-current="page">Home</a>
-    <a href="terms/">Terms</a>
-    <a href="privacy/">Privacy</a>
-  </nav>
-  <div class="theme-picker" id="theme-picker" role="group" aria-label="Color theme"></div>
+  <span class="mark" aria-label="Lotus Download Manager" draggable="false">
+    <span class="mark-ico" aria-hidden="true"></span>
+    <span class="mark-txt">Lotus</span>
+  </span>
+  <div class="theme-picker" id="theme-picker" aria-label="Color theme"></div>
 </header>
 
-<main class="wrap">
+<main>
   <section class="hero">
-    <div class="logo-lg" role="img" aria-label="Lotus logo"></div>
-    <h1>Lotus Download Manager</h1>
-    <p class="lede">Fast, free downloads for Windows and Android - multi-segment, resumable, and completely telemetry-free.</p>
-    <div class="downloads">
-      <a class="btn btn-primary" href="https://github.com/b0dr7/lotus-dm/releases/latest/download/LotusDM-windows-x64.exe">Windows 64-bit</a>
-      <a class="btn" href="https://github.com/b0dr7/lotus-dm/releases/latest/download/LotusDM-windows-x86.exe">Windows 32-bit</a>
-      <a class="btn" href="https://github.com/b0dr7/lotus-dm/releases/latest/download/LotusDM-android-universal.apk">Android (universal)</a>
+    <div class="mark" aria-label="Lotus Download Manager" draggable="false">
+      <span class="mark-ico" aria-hidden="true"></span>
+      <span class="mark-txt">Lotus</span>
     </div>
-    <details class="abi">
-      <summary>Other Android devices</summary>
-      <ul>
-        <li><a href="https://github.com/b0dr7/lotus-dm/releases/latest/download/LotusDM-android-arm64-v8a.apk">arm64-v8a</a> - modern phones</li>
-        <li><a href="https://github.com/b0dr7/lotus-dm/releases/latest/download/LotusDM-android-armeabi-v7a.apk">armeabi-v7a</a> - older or weaker phones</li>
-        <li><a href="https://github.com/b0dr7/lotus-dm/releases/latest/download/LotusDM-android-x86_64.apk">x86_64</a> - emulators and Chromebooks</li>
-      </ul>
-    </details>
-  </section>
+    <p class="lede">A free download manager for Windows and Android. Eight parallel segments per file, with downloads that resume where they stopped.</p>
 
-  <section aria-labelledby="features-h">
-    <h2 id="features-h">Features</h2>
-    <div class="grid cols-3">
-      <div class="card">
-        <h3>Multi-segment</h3>
-        <p>Eight parallel connections per file for maximum speed.</p>
+    <div class="socials">
+      <a href="https://github.com/b0dr7/lotus-dm" aria-label="Source on GitHub" rel="noopener">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.1 4.7 18 5 18 5c.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.7-2.8 5.7-5.5 6 .4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3z"/></svg>
+      </a>
+    </div>
+
+    <div class="hero-actions">
+      <div class="split" id="hero-dl">
+        <a class="btn btn-primary" href="https://github.com/b0dr7/lotus-dm/releases/latest/download/LotusDM-windows-universal.exe">Download for Windows</a>
+        <button class="split-toggle" type="button" aria-label="Other Windows versions" aria-expanded="false"></button>
+        <div class="split-menu">
+          <a href="https://github.com/b0dr7/lotus-dm/releases/latest/download/LotusDM-windows-x64.exe">64-bit .exe</a>
+          <a href="https://github.com/b0dr7/lotus-dm/releases/latest/download/LotusDM-windows-x86.exe">32-bit .exe</a>
+        </div>
       </div>
-      <div class="card">
-        <h3>Resume</h3>
-        <p>Pause, resume, and pick up after a restart exactly where you stopped.</p>
-      </div>
-      <div class="card">
-        <h3>Speed limits</h3>
-        <p>Per-download and global throttles when you need the bandwidth back.</p>
-      </div>
-      <div class="card">
-        <h3>Clipboard monitor</h3>
-        <p>Catch copied links automatically - optional, off by default.</p>
-      </div>
-      <div class="card">
-        <h3>Browser integration</h3>
-        <p>Send downloads from Firefox and Chrome straight to the queue.</p>
-      </div>
-      <div class="card">
-        <h3>No tracking</h3>
-        <p>Zero telemetry, zero ads, zero webviews. Entirely free.</p>
-      </div>
+      <a class="btn btn-soft" href="#downloads">View downloads</a>
     </div>
   </section>
 
-  <section aria-labelledby="install-h">
-    <h2 id="install-h">Install</h2>
-    <div class="grid">
-      <div class="card">
+  <section class="tiles" aria-label="Features">
+    <div class="tile">
+      <h2>Multi-segment</h2>
+      <p>Splits every file into eight parallel connections, then merges the parts in order.</p>
+    </div>
+    <div class="tile">
+      <h2>Resume</h2>
+      <p>Pause, close the app, restart - the queue picks up from the exact byte it stopped at.</p>
+    </div>
+    <div class="tile">
+      <h2>Speed limits</h2>
+      <p>Cap a single download or the whole queue when you need the bandwidth back.</p>
+    </div>
+    <div class="tile">
+      <h2>Browser catch</h2>
+      <p>Windows only. Firefox and Chromium extensions send links from the browser straight to the queue.</p>
+    </div>
+    <div class="tile">
+      <h2>One queue</h2>
+      <p>All, Active, Done, Failed. One list with status filters - no folders, no library.</p>
+    </div>
+    <div class="tile">
+      <h2>No tracking</h2>
+      <p>No accounts, no analytics, no telemetry, no webviews. Free, permanently.</p>
+    </div>
+  </section>
+
+  <section class="downloads" id="downloads" aria-labelledby="downloads-h">
+    <h2 id="downloads-h">Downloads</h2>
+    <div class="dl-grid">
+      <div class="tile dl">
         <h3>Windows</h3>
-        <ol class="steps">
-          <li>Download the 64-bit build (or 32-bit for older PCs).</li>
-          <li>Run the downloaded .exe file.</li>
-          <li>Paste a URL - your first download starts.</li>
-        </ol>
+        <div class="split">
+          <a class="btn btn-primary" href="https://github.com/b0dr7/lotus-dm/releases/latest/download/LotusDM-windows-universal.exe">Universal .exe</a>
+          <button class="split-toggle" type="button" aria-label="Other Windows builds" aria-expanded="false"></button>
+          <div class="split-menu">
+            <a href="https://github.com/b0dr7/lotus-dm/releases/latest/download/LotusDM-windows-x64.exe">64-bit .exe</a>
+            <a href="https://github.com/b0dr7/lotus-dm/releases/latest/download/LotusDM-windows-x86.exe">32-bit .exe</a>
+          </div>
+        </div>
+        <p class="note">Run the .exe and paste a URL - your first download starts.</p>
       </div>
-      <div class="card">
+
+      <div class="tile dl">
         <h3>Android</h3>
-        <ol class="steps">
-          <li>Download the universal APK (or your device's build under Other Android devices).</li>
-          <li>Allow installs from your browser when prompted.</li>
-          <li>Open the downloaded APK and confirm the install.</li>
-        </ol>
+        <div class="split">
+          <a class="btn btn-primary" href="https://github.com/b0dr7/lotus-dm/releases/latest/download/LotusDM-android-universal.apk">Universal .apk</a>
+          <button class="split-toggle" type="button" aria-label="Other Android builds" aria-expanded="false"></button>
+          <div class="split-menu">
+            <a href="https://github.com/b0dr7/lotus-dm/releases/latest/download/LotusDM-android-arm64-v8a.apk">arm64-v8a .apk</a>
+            <a href="https://github.com/b0dr7/lotus-dm/releases/latest/download/LotusDM-android-armeabi-v7a.apk">armeabi-v7a .apk</a>
+            <a href="https://github.com/b0dr7/lotus-dm/releases/latest/download/LotusDM-android-x86_64.apk">x86_64 .apk</a>
+          </div>
+        </div>
+        <p class="note">Allow installs from your browser, then open the APK and confirm.</p>
+      </div>
+
+      <div class="tile dl">
+        <h3>Extension</h3>
+        <div class="split">
+          <a class="btn btn-primary" href="extensions/">Set it up</a>
+          <button class="split-toggle" type="button" aria-label="Extension files" aria-expanded="false"></button>
+          <div class="split-menu">
+            <a href="https://github.com/b0dr7/lotus-dm/releases/latest/download/LotusDM-extension-chromium.zip">Chromium .zip</a>
+            <a href="https://github.com/b0dr7/lotus-dm/releases/latest/download/LotusDM-extension-firefox.xpi">Firefox .xpi</a>
+          </div>
+        </div>
+        <p class="note">Firefox installs from its add-on listing. Chromium: unzip, Load unpacked.</p>
       </div>
     </div>
   </section>
 </main>
 
 <footer class="site-footer">
-  <a href="terms/">Terms</a> | <a href="privacy/">Privacy</a>
+  <a href="./" aria-current="page">Lotus Download Manager</a>
+  <span class="sep" aria-hidden="true">|</span>
+  <a href="terms/">Terms</a>
+  <span class="sep" aria-hidden="true">|</span>
+  <a href="privacy/">Privacy</a>
 </footer>
 <script src="theme.js"></script>
+<script src="platform.js"></script>
 </body>
 </html>
