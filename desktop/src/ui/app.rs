@@ -426,7 +426,7 @@ impl LotusApp {
         let job = self.queue[index].clone();
         match action {
             details::Action::Start => {
-                lifecycle::spawn_job(&job, &mut self.controls, &self.event_tx)
+                lifecycle::spawn_job(&job, &mut self.controls, &self.event_tx);
             }
             details::Action::Pause => {
                 if let Some(control) = self.controls.get(&job.id) {
