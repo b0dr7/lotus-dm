@@ -39,7 +39,7 @@ pub fn add_dialog_window(
                 [ui.available_width(), 26.0],
                 egui::TextEdit::singleline(&mut dialog.url)
                     .hint_text("https://example.com/file.zip"),
-            ui.add_space(8.0);
+            );
             ui.label("Filename (optional)");
             ui.add_sized(
                 [ui.available_width(), 26.0],
