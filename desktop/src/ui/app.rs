@@ -706,7 +706,7 @@ impl eframe::App for LotusApp {
         CentralPanel::default().show(ctx, |ui| match self.nav {
             Nav::Home => {
                 ui.add_space(16.0);
-                ui.heading("Home");
+                ui.heading(i18n::tr(self.settings.language, Key::NavHome));
                 ui.label(
                     egui::RichText::new("Everything you are downloading, in one list.")
                         .color(p.muted)
@@ -733,7 +733,7 @@ impl eframe::App for LotusApp {
             }
             Nav::Queue => {
                 ui.add_space(16.0);
-                ui.heading("Queue");
+                ui.heading(i18n::tr(self.settings.language, Key::NavQueue));
                 ui.add_space(12.0);
                 if queue_view::filters_row(ui, &self.queue, &mut self.filter, self.settings.language, &p) {
                     self.queue.retain(|job| job.status != JobStatus::Done);
@@ -758,7 +758,7 @@ impl eframe::App for LotusApp {
             }
             Nav::Site => {
                 ui.add_space(16.0);
-                ui.heading("Site Explorer");
+                ui.heading(i18n::tr(self.settings.language, Key::NavSite));
                 ui.add_space(12.0);
                 ui.horizontal(|ui| {
                     ui.add_sized(
@@ -800,7 +800,7 @@ impl eframe::App for LotusApp {
                 }
             }
             Nav::Spider => {
-                let picked = crate::ui::spider::spider_panel(&mut self.spider, ui, &p);
+                let picked = crate::ui::spider::spider_panel(&mut self.spider, ui, self.settings.language, &p);
                 if !picked.is_empty() {
                     let folder = self.settings.default_folder.clone();
                     for url in picked {

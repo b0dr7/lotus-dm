@@ -3,7 +3,9 @@ use std::sync::mpsc::{self, Receiver, TryRecvError};
 
 use eframe::egui::{self, RichText};
 
+use crate::core::settings::Lang;
 use crate::engine::spider::{self, SpiderMatch};
+use crate::ui::i18n::{self, Key};
 use crate::ui::theme::Palette;
 
 pub struct SpiderState {
@@ -91,10 +93,10 @@ impl SpiderState {
     }
 }
 
-pub fn spider_panel(state: &mut SpiderState, ui: &mut egui::Ui, p: &Palette) -> Vec<String> {
+pub fn spider_panel(state: &mut SpiderState, ui: &mut egui::Ui, lang: Lang, p: &Palette) -> Vec<String> {
     state.poll();
     ui.add_space(16.0);
-    ui.heading("HTML Spider");
+    ui.heading(i18n::tr(lang, Key::NavSpider));
     ui.label(
         RichText::new("Crawl a site and keep the files that match.")
             .color(p.muted)
