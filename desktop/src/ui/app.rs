@@ -133,8 +133,9 @@ impl LotusApp {
                 .filename
                 .unwrap_or_else(|| queue::derive_filename(&request.url));
             let folder = self.settings.default_folder.clone();
-            self.queue
-                .push(DownloadJob::new_queued(request.url, filename, folder));
+            let mut job = DownloadJob::new_queued(request.url, filename, folder);
+            job.quality = request.quality;
+            self.queue.push(job);
             if let Err(err) = queue::save(&self.queue) {
                 eprintln!("lotusdm: queue save failed: {err}");
             }

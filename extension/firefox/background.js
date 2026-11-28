@@ -14,9 +14,13 @@ async function bridgePort() {
 
 async function sendToLotus(url, filename) {
   const port = await bridgePort();
+  const body = { url: url, filename: filename || null };
+  const mediaQuality = mediaQualityFor(url);
+  if (mediaQuality) body.quality = mediaQuality;
   const response = await fetch("http://127.0.0.1:" + port + "/add", {
+    method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url: url, filename: filename || null })
+    body: JSON.stringify(body)
   });
   let data = {};
   try {
@@ -26,6 +30,12 @@ async function sendToLotus(url, filename) {
     throw new Error(data.error || "HTTP " + response.status);
   }
   return port;
+}
+
+function mediaQualityFor(url) {
+  if (!/^https?:/i.test(url)) return null;
+  if (/\.(mp3|aac|opus|flac|wav)(\?|$)/i.test(url)) return null;
+  return "720p";
 }
 
 function flashFail() {

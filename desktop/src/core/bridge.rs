@@ -15,6 +15,7 @@ const MAX_BODY: usize = 65_536;
 pub struct AddRequest {
     pub url: String,
     pub filename: Option<String>,
+    pub quality: Option<String>,
 }
 
 #[derive(serde::Deserialize)]
@@ -22,6 +23,8 @@ struct AddBody {
     url: String,
     #[serde(default)]
     filename: Option<String>,
+    #[serde(default)]
+    quality: Option<String>,
 }
 
 pub fn start(
@@ -108,7 +111,8 @@ fn serve(mut stream: TcpStream, tx: &Sender<AddRequest>) -> bool {
         ("GET", "/add") => {
             let url = query_param(query, "url").unwrap_or_default();
             let filename = query_param(query, "filename");
-            queue_one(&mut stream, tx, url, filename)
+            let quality = query_param(query, "quality");
+            queue_one(&mut stream, tx, url, filename, quality)
         }
         ("POST", "/add") | ("POST", "/") => {
             let parsed: Option<AddBody> = serde_json::from_slice(&body).ok();
@@ -116,7 +120,7 @@ fn serve(mut stream: TcpStream, tx: &Sender<AddRequest>) -> bool {
                 respond(&mut stream, 400, "{\"ok\":false,\"error\":\"expected a JSON body\"}");
                 return false;
             };
-            queue_one(&mut stream, tx, parsed.url, parsed.filename)
+            queue_one(&mut stream, tx, parsed.url, parsed.filename, parsed.quality)
         }
         _ => {
             respond(&mut stream, 404, "{\"ok\":false,\"error\":\"unknown route\"}");
@@ -130,6 +134,7 @@ fn queue_one(
     tx: &Sender<AddRequest>,
     url: String,
     filename: Option<String>,
+    quality: Option<String>,
 ) -> bool {
     let url = url.trim().to_string();
     let lower = url.to_ascii_lowercase();
@@ -147,7 +152,10 @@ fn queue_one(
     let filename = filename
         .map(|name| name.trim().to_string())
         .filter(|name| !name.is_empty() && name.len() <= 200);
-    if tx.send(AddRequest { url, filename }).is_err() {
+    let quality = quality
+        .map(|name| name.trim().to_string())
+        .filter(|name| !name.is_empty() && name.len() <= 20);
+    if tx.send(AddRequest { url, filename, quality }).is_err() {
         respond(stream, 503, "{\"ok\":false,\"error\":\"window closed\"}");
         return false;
     }
