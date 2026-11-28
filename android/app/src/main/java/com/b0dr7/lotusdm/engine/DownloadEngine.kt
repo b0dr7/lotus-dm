@@ -107,6 +107,9 @@ class DownloadEngine private constructor(context: Context) {
         var awaitingWifi: Boolean = false,
         @Volatile
         var quality: String? = null,
+        /** Mirror URLs tried in order if the primary URL fails. */
+        @Volatile
+        var mirrors: List<String> = emptyList(),
         @Volatile
         var startAt: Long = 0L,
     ) {
@@ -173,6 +176,7 @@ class DownloadEngine private constructor(context: Context) {
             kind = kind,
             awaitingWifi = awaitingWifi,
             quality = quality,
+            mirrors = mirrors,
             startAt = startAt,
         )
     }
@@ -201,7 +205,7 @@ class DownloadEngine private constructor(context: Context) {
         return cleaned?.takeIf { it.isNotEmpty() }
     }
 
-    fun add(url: String, name: String? = null, quality: String? = null, startAt: Long = 0L): DownloadJob? {
+    fun add(url: String, name: String? = null, quality: String? = null, startAt: Long = 0L, mirrors: List<String> = emptyList()): DownloadJob? {
         val clean = url.trim()
         if (clean.isEmpty()) return null
         val wanted = sanitizeName(name)
@@ -224,6 +228,7 @@ class DownloadEngine private constructor(context: Context) {
             limit = 0L,
             created = created,
             quality = if (isMediaUrl(clean) && quality != null) quality else null,
+            mirrors = mirrors,
             startAt = if (startAt > 0L) startAt else 0L,
         )
         entries[id] = entry
@@ -496,6 +501,17 @@ class DownloadEngine private constructor(context: Context) {
 
 
     private suspend fun download(entry: Entry) {
+        if (entry.mirrors.isNotEmpty()) {
+            val urls = mutableListOf(entry.url)
+            urls.addAll(entry.mirrors)
+            for (url in urls) {
+                val p = probe(url)
+                if (p.total > 0L || p.rangeOk) {
+                    entry.url = url
+                    break
+                }
+            }
+        }
         try {
             val probe = probe(entry.url)
             if (probe.total > 0L) entry.total = probe.total
@@ -976,6 +992,7 @@ class DownloadEngine private constructor(context: Context) {
                     .put("torrentUri", entry.torrentUri ?: "")
                     .put("quality", entry.quality ?: "")
                     .put("startAt", entry.startAt)
+                    .put("mirrors", org.json.JSONArray(entry.mirrors))
                 File(entry.dir, META_NAME).writeText(json.toString())
             }
         }
@@ -1025,6 +1042,12 @@ class DownloadEngine private constructor(context: Context) {
                 entry.torrentUri = json.optString("torrentUri", "").ifEmpty { null }
                 entry.quality = json.optString("quality", "").ifEmpty { null }
                 entry.startAt = json.optLong("startAt", 0L)
+                val mirrorsArr = json.optJSONArray("mirrors")
+                if (mirrorsArr != null) {
+                    val list = mutableListOf<String>()
+                    for (i in 0 until mirrorsArr.length()) list.add(mirrorsArr.optString(i))
+                    entry.mirrors = list
+                }
 
                 val segments = json.optJSONArray("segments")
                 if (segments != null && entry.segCount > 0) {

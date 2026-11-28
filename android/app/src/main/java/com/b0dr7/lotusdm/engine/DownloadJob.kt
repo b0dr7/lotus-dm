@@ -43,6 +43,7 @@ data class DownloadJob(
     val kind: JobKind = JobKind.HTTP,
     val awaitingWifi: Boolean = false,
     val quality: String? = null,
+    val mirrors: List<String> = emptyList(),
     val startAt: Long = 0L,
 ) {
     val progress: Float
