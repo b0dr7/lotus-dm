@@ -11,14 +11,15 @@ document.documentElement.setAttribute("data-theme",t)})();</script>
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
-<div class="theme-picker" id="theme-picker" aria-label="Color theme"></div>
-
-<main class="legal">
-  <div class="mark mark--compact" aria-label="Lotus Download Manager" draggable="false">
+<header class="site-header">
+  <span class="mark" aria-label="Lotus Download Manager" draggable="false">
     <span class="mark-ico" aria-hidden="true"></span>
     <span class="mark-txt">Lotus</span>
-  </div>
+  </span>
+  <div class="theme-picker" id="theme-picker" aria-label="Color theme"></div>
+</header>
 
+<main class="legal">
   <h1>Lotus in your browser</h1>
   <p>Right-click a link and choose <strong>Download with Lotus DM</strong>, or open the toolbar popup to send the page you are on. The extension hands the link to the running app over <code>127.0.0.1</code> and the download joins the same queue as everything else. Nothing leaves your machine - there is no account and no server in the middle.</p>
   <p class="note">Windows only. The extension talks to the Lotus app on the same PC, so that app has to be open to accept a link. Android has no extension - share a link to Lotus DM from any browser instead.</p>
