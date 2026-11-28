@@ -8,7 +8,11 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.withContext
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -170,6 +174,33 @@ private fun NewDownloadSheet(
                 color = colors.muted,
                 fontSize = 12.5.sp,
             )
+
+            val thumbUrl = youtubeThumbnailUrl(link)
+            if (thumbUrl != null) {
+                Spacer(Modifier.height(12.dp))
+                var bitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+                LaunchedEffect(thumbUrl) {
+                    bitmap = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        runCatching {
+                            val conn = java.net.URL(thumbUrl).openConnection() as java.net.HttpURLConnection
+                            conn.doInput = true
+                            conn.connect()
+                            BitmapFactory.decodeStream(conn.inputStream)
+                        }.getOrNull()
+                    }
+                }
+                bitmap?.let { bmp ->
+                    Image(
+                        bitmap = bmp.asImageBitmap(),
+                        contentDescription = "Video thumbnail",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp)
+                            .clip(RoundedCornerShape(12.dp)),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    )
+                }
+            }
 
             Spacer(Modifier.height(16.dp))
 
@@ -340,6 +371,25 @@ private fun QualityRow(
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
         )
     }
+}
+
+private fun youtubeVideoId(url: String): String? {
+    val lower = url.lowercase()
+    if (!lower.contains("youtube.com") && !lower.contains("youtu.be")) return null
+    // youtu.be/VIDEO_ID
+    Regex("youtu\\.be/([A-Za-z0-9_-]{11})").find(url)?.groupValues?.get(1)?.let { return it }
+    // youtube.com/shorts/VIDEO_ID
+    Regex("youtube\\.com/shorts/([A-Za-z0-9_-]{11})").find(url)?.groupValues?.get(1)?.let { return it }
+    // youtube.com/watch?v=VIDEO_ID
+    Regex("[?&]v=([A-Za-z0-9_-]{11})").find(url)?.groupValues?.get(1)?.let { return it }
+    // youtube.com/embed/VIDEO_ID
+    Regex("youtube\\.com/embed/([A-Za-z0-9_-]{11})").find(url)?.groupValues?.get(1)?.let { return it }
+    return null
+}
+
+private fun youtubeThumbnailUrl(url: String): String? {
+    val id = youtubeVideoId(url) ?: return null
+    return "https://img.youtube.com/vi/$id/hqdefault.jpg"
 }
 
 private fun extractLink(intent: Intent?): String? {
