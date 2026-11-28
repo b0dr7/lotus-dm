@@ -271,6 +271,8 @@ fn action_text(lang: Lang, label: &str) -> &'static str {
         _ => label,
     }
 }
+
+fn actions_for(status: JobStatus) -> Vec<(&'static str, bool)> {
     match status {
         JobStatus::Queued => vec![("Start", true)],
         JobStatus::Running => vec![("Pause", false), ("Cancel", false)],
