@@ -96,8 +96,7 @@ pub fn save(jobs: &[DownloadJob]) -> Result<(), String> {
 }
 
 pub fn derive_filename(url: &str) -> String {
-    // A magnet link has no path to derive a name from; the torrent engine
-    // reports the real name once the metadata arrives.
+    // A magnet link has no path to name the row with.
     if url.trim_start().to_ascii_lowercase().starts_with("magnet:") {
         return "torrent".to_string();
     }

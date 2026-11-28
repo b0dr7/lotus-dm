@@ -2,14 +2,13 @@
 //!
 //! It shares the HTTP engine's contract: a queue job
 //! (`crate::core::queue::DownloadJob`) goes in, `engine::Event`s come out,
-//! and `engine::Control` carries pause/cancel. Nothing in this module knows
-//! about egui or any other UI type, so the queue and the UI stay decoupled
-//! from the torrent stack.
+//! and `engine::Control` carries pause/cancel. Nothing here knows about egui
+//! or any other UI type.
 //!
 //! Intake accepts magnet links, http(s) links to a `.torrent` file and local
 //! `.torrent` files; `engine::spawn_download` routes every such job here.
 
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::{Mutex, PoisonError};
 
 use serde::{Deserialize, Serialize};
 
@@ -17,8 +16,8 @@ pub mod intake;
 pub mod session;
 pub mod worker;
 
-/// MSE/PE (encrypted BitTorrent peer connections) policy, mirroring the
-/// three modes FDM exposes.
+/// MSE/PE (encrypted BitTorrent peer connections) policy, mirroring the three
+/// modes FDM exposes.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EncryptionMode {
     /// Plaintext peer connections only.
@@ -30,46 +29,25 @@ pub enum EncryptionMode {
     Forced,
 }
 
-impl EncryptionMode {
-    fn index(self) -> u8 {
-        match self {
-            EncryptionMode::Disabled => 0,
-            EncryptionMode::Enabled => 1,
-            EncryptionMode::Forced => 2,
-        }
-    }
-
-    fn from_index(index: u8) -> Self {
-        match index {
-            1 => EncryptionMode::Enabled,
-            2 => EncryptionMode::Forced,
-            _ => EncryptionMode::Disabled,
-        }
-    }
-}
-
 /// librqbit implements no MSE/PE handshake in any release so far: there is no
 /// RC4/Diffie-Hellman layer, and the upstream work is still an open pull
-/// request (ikatson/rqbit#633). Encrypted peer traffic is therefore not
-/// possible here.
+/// request (ikatson/rqbit#633). Encrypted peer traffic is not possible here.
 ///
-/// Consequences, kept explicit so nothing is silently downgraded:
-/// - `Disabled` runs plaintext, as asked.
-/// - `Enabled` behaves like FDM's "enabled": plaintext is allowed as the
-///   fallback, so it is honoured, but it does not add encryption either.
-/// - `Forced` refuses to start the torrent instead of leaking plaintext.
+/// The modes are still honoured as far as they can be, so nothing is silently
+/// downgraded: `Disabled` runs plaintext, `Enabled` allows the plaintext
+/// fallback it already promises, and `Forced` refuses the torrent.
 pub const MSE_SUPPORTED: bool = false;
 
-static ENCRYPTION: AtomicU8 = AtomicU8::new(0);
+static ENCRYPTION: Mutex<EncryptionMode> = Mutex::new(EncryptionMode::Disabled);
 
 pub fn encryption() -> EncryptionMode {
-    EncryptionMode::from_index(ENCRYPTION.load(Ordering::Relaxed))
+    *ENCRYPTION.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-/// Set the process-wide MSE policy. Takes effect for torrents started after
-/// the call; running torrents keep the mode they were admitted with.
+/// Set the MSE policy. Applies to torrents started after the call; running
+/// torrents keep the mode they were admitted with.
 pub fn set_encryption(mode: EncryptionMode) {
-    ENCRYPTION.store(mode.index(), Ordering::Relaxed);
+    *ENCRYPTION.lock().unwrap_or_else(PoisonError::into_inner) = mode;
 }
 
 /// Gate the worker runs before touching the network.
@@ -85,7 +63,7 @@ pub(crate) fn check_encryption() -> Result<(), String> {
     Ok(())
 }
 
-/// True when the queue URL should be handled by the torrent engine.
+/// True when the queue URL belongs to the torrent engine.
 pub fn is_torrent(raw: &str) -> bool {
     intake::parse(raw).is_some()
 }
@@ -93,17 +71,6 @@ pub fn is_torrent(raw: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn encryption_modes_round_trip() {
-        for mode in [
-            EncryptionMode::Disabled,
-            EncryptionMode::Enabled,
-            EncryptionMode::Forced,
-        ] {
-            assert_eq!(EncryptionMode::from_index(mode.index()), mode);
-        }
-    }
 
     #[test]
     fn forced_encryption_is_refused_without_mse() {
