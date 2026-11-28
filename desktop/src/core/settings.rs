@@ -46,6 +46,8 @@ pub struct Settings {
     pub global_speed_limit_kbps: u64,
     pub traffic_mode: TrafficMode,
     pub max_connections_per_server: u8,
+    /// How many downloads may run at the same time; 0 means no limit.
+    pub max_concurrent_downloads: u8,
     pub clipboard_watch: bool,
     pub bridge_enabled: bool,
     pub bridge_port: u16,
@@ -84,6 +86,7 @@ impl Default for Settings {
             auto_start_minute: 0,
             traffic_mode: TrafficMode::Custom,
             max_connections_per_server: 8,
+            max_concurrent_downloads: 3,
             auto_shutdown: false,
             launch_at_startup: false,
             portable: false,

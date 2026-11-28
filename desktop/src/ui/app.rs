@@ -127,9 +127,7 @@ impl LotusApp {
         if let Err(err) = queue::save(&self.queue) {
             eprintln!("lotusdm: queue save failed: {err}");
         }
-        if let Some(job) = self.queue.last() {
-            lifecycle::spawn_job(job, &mut self.controls, &self.event_tx);
-        }
+        self.start_pending();
         self.url_input.clear();
     }
 
@@ -145,10 +143,8 @@ impl LotusApp {
             if let Err(err) = queue::save(&self.queue) {
                 eprintln!("lotusdm: queue save failed: {err}");
             }
-            if let Some(job) = self.queue.last() {
-                lifecycle::spawn_job(job, &mut self.controls, &self.event_tx);
-            }
         }
+        self.start_pending();
     }
 
     fn drain_events(&mut self) {
@@ -246,18 +242,23 @@ impl LotusApp {
                     let id = self.queue[index].id.clone();
                     if let Some(control) = self.controls.get(&id) {
                         control.request_resume();
-                    } else {
-                        let pending = self.queue[index].clone();
-                        lifecycle::spawn_job(&pending, &mut self.controls, &self.event_tx);
                     }
-                }
-                JobStatus::Queued => {
-                    let pending = self.queue[index].clone();
-                    lifecycle::spawn_job(&pending, &mut self.controls, &self.event_tx);
                 }
                 _ => {}
             }
         }
+        self.start_pending();
+    }
+
+    /// Start everything the concurrency limit has room for. Called every frame,
+    /// so a finished download frees its slot without the user doing anything.
+    fn start_pending(&mut self) {
+        lifecycle::start_pending(
+            &mut self.queue,
+            &mut self.controls,
+            &self.event_tx,
+            self.settings.max_concurrent_downloads,
+        );
     }
 
     /// One notification per terminal state, and none for a failure that is
@@ -359,7 +360,12 @@ impl LotusApp {
         if hour == self.settings.auto_start_hour && minute == self.settings.auto_start_minute {
             if self.auto_armed {
                 self.auto_armed = false;
-                lifecycle::start_all_queued(&mut self.queue, &mut self.controls, &self.event_tx);
+                lifecycle::start_all_queued(
+                    &mut self.queue,
+                    &mut self.controls,
+                    &self.event_tx,
+                    self.settings.max_concurrent_downloads,
+                );
             }
         } else {
             self.auto_armed = true;
@@ -543,12 +549,8 @@ impl eframe::App for LotusApp {
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
             }
         }
-        lifecycle::pump_retries(
-            &mut self.queue,
-            &mut self.controls,
-            &self.event_tx,
-            &mut self.retry,
-        );
+        lifecycle::pump_retries(&mut self.queue, &mut self.retry);
+        self.start_pending();
         self.maybe_auto_start();
         self.watch.poll(ctx, self.settings.clipboard_watch);
 
