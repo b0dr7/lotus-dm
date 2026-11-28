@@ -65,6 +65,9 @@ fn session() -> Result<&'static Arc<Session>, String> {
                 opts.dht = None;
             }
             opts.disable_local_service_discovery = !policy.lsd;
+            // rqbit applies MSE to outgoing and incoming connections per
+            // session, so this is the one place the mode reaches the wire.
+            opts.mse_mode = policy.encryption.into();
 
             runtime()?
                 .block_on(Session::new_with_opts(folder, opts))
