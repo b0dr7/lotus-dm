@@ -380,8 +380,7 @@ private fun youtubeVideoId(url: String): String? {
 private fun youtubeThumbnailUrl(url: String): String? {
     val id = youtubeVideoId(url) ?: return null
     return "https://img.youtube.com/vi/$id/hqdefault.jpg"
-
-private fun extractLink(intent: Intent?): String? {
+}
     if (intent == null) return null
 
     return when (intent.action) {
@@ -391,6 +390,7 @@ private fun extractLink(intent: Intent?): String? {
                 ?: intent.getStringExtra(Intent.EXTRA_SUBJECT)
                 ?: return null
             val match = Regex("https?://\\S+|magnet:\\?\\S+").find(text) ?: return null
+            match.value.trimEnd('.', ',', ')', ']', '}', '"', '\'', '>')
         }
         else -> null
     }
