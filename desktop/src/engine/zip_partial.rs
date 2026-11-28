@@ -26,9 +26,6 @@ impl ZipEntry {
         self.name.ends_with('/')
     }
 
-    pub fn is_stored(&self) -> bool {
-        self.method == 0
-    }
 }
 
 pub fn list(url: &str) -> Result<Vec<ZipEntry>, String> {
@@ -65,9 +62,9 @@ pub fn extract(
     if entry.is_dir() {
         return Err("that is a folder".to_string());
     }
-    if !entry.is_stored() {
+    if entry.method != 0 && entry.method != 8 {
         return Err(format!(
-            "entry uses compression method {} (only stored entries can be pulled out)",
+            "entry uses compression method {}, which this build cannot unpack",
             entry.method
         ));
     }
@@ -106,7 +103,7 @@ pub fn extract(
         offset = stop + 1;
     }
     drop(file);
-    if written != entry.compressed_size || written != entry.uncompressed_size {
+    if written != entry.compressed_size {
         let _ = std::fs::remove_file(&part);
         return Err(format!(
             "short read: {written} of {} bytes",
@@ -116,8 +113,56 @@ pub fn extract(
     if target.exists() {
         let _ = std::fs::remove_file(&target);
     }
-    std::fs::rename(&part, &target).map_err(|err| format!("{target:?}: {err}"))?;
+    let size = match entry.method {
+        0 => {
+            std::fs::rename(&part, &target).map_err(|err| format!("{target:?}: {err}"))?;
+            written
+        }
+        _ => {
+            let size = match inflate(&part, &target, control) {
+                Ok(size) => size,
+                Err(err) => {
+                    let _ = std::fs::remove_file(&part);
+                    return Err(err);
+                }
+            };
+            let _ = std::fs::remove_file(&part);
+            size
+        }
+    };
+    if size != entry.uncompressed_size {
+        let _ = std::fs::remove_file(&target);
+        return Err(format!(
+            "unpacked {size} of {} bytes",
+            entry.uncompressed_size
+        ));
+    }
     Ok(target)
+}
+
+fn inflate(part: &Path, target: &Path, control: &Control) -> Result<u64, String> {
+    let input = std::fs::File::open(part).map_err(|err| format!("{part:?}: {err}"))?;
+    let mut decoder = flate2::read::DeflateDecoder::new(std::io::BufReader::new(input));
+    let mut out = std::fs::File::create(target).map_err(|err| format!("{target:?}: {err}"))?;
+    let mut buf = [0u8; 64 * 1024];
+    let mut total = 0u64;
+    loop {
+        if control.cancelled() {
+            drop(out);
+            let _ = std::fs::remove_file(target);
+            return Err("cancelled".to_string());
+        }
+        let read = decoder
+            .read(&mut buf)
+            .map_err(|err| format!("{part:?}: {err}"))?;
+        if read == 0 {
+            break;
+        }
+        out.write_all(&buf[..read])
+            .map_err(|err| format!("{target:?}: {err}"))?;
+        total += read as u64;
+    }
+    Ok(total)
 }
 
 fn content_length(url: &str) -> Result<u64, String> {
@@ -229,6 +274,7 @@ fn read_u32(bytes: &[u8], at: usize) -> Option<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Write;
 
     fn end_record(cd_size: u32, cd_offset: u32, comment: &[u8]) -> Vec<u8> {
         let mut bytes = Vec::new();
@@ -286,9 +332,26 @@ mod tests {
         let entries = parse_central_directory(&bytes);
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].name, "a/one.bin");
-        assert!(entries[0].is_stored());
+        assert_eq!(entries[0].method, 0);
         assert_eq!(entries[1].header_offset, 4096);
-        assert!(!entries[1].is_stored());
+        assert_eq!(entries[1].method, 8);
+    }
+
+    #[test]
+    fn inflates_a_deflated_entry() {
+        let dir = std::env::temp_dir().join(format!("lotus-zip-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let data = b"lotus partial zip round trip".repeat(64);
+        let mut encoder =
+            flate2::write::DeflateEncoder::new(Vec::new(), flate2::Compression::default());
+        encoder.write_all(&data).unwrap();
+        let part = dir.join("entry.deflate");
+        std::fs::write(&part, encoder.finish().unwrap()).unwrap();
+        let target = dir.join("entry.bin");
+        let size = inflate(&part, &target, &Control::default()).unwrap();
+        assert_eq!(size, data.len() as u64);
+        assert_eq!(std::fs::read(&target).unwrap(), data);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

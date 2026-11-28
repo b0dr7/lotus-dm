@@ -152,7 +152,7 @@ pub fn zip_window(
                 ui.add_sized(
                     [width, 26.0],
                     egui::TextEdit::singleline(&mut pick.url)
-                        .hint_text("https:
+                        .hint_text("example.com/archive.zip"),
                 );
                 if ui
                     .add_enabled(!pick.busy(), egui::Button::new("List"))
@@ -198,13 +198,6 @@ pub fn zip_window(
                                     .color(p.muted)
                                     .size(11.5),
                             );
-                            if !entry.is_stored() {
-                                ui.label(
-                                    RichText::new("compressed")
-                                        .color(p.muted)
-                                        .size(11.0),
-                                );
-                            }
                         });
                     }
                     for (index, checked) in changes {
@@ -218,7 +211,7 @@ pub fn zip_window(
             }
             ui.add_space(10.0);
             ui.label(
-                RichText::new("Only uncompressed entries can be pulled out in this build.")
+                RichText::new("Files land in your download folder.")
                     .color(p.muted)
                     .size(11.0),
             );
