@@ -12,6 +12,7 @@ ureq = "2"
 rfd = "0.18.0"
 suppaftp = { version = "12", default-features = false }
 tokio = { version = "1", features = ["rt-multi-thread", "net", "time", "io-util", "sync"] }
+flate2 = "1"
 
 [target.'cfg(target_pointer_width = "64")'.dependencies]
 librqbit = { git = "https://github.com/lingdiansr/rqbit", rev = "9b7877cbd884f77c8923e81287b6ed4bf2b2c67f" }
