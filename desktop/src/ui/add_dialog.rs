@@ -8,6 +8,9 @@ pub struct AddDialog {
     pub url: String,
     pub filename: String,
     pub folder: String,
+    /// Media pick for video/audio jobs: a height like `1080p` or a format like `mp3`.
+    /// None keeps the engine default (720p video / mp3 audio).
+    pub quality: Option<String>,
 }
 
 pub fn add_dialog_window(
@@ -50,6 +53,36 @@ pub fn add_dialog_window(
                 [ui.available_width(), 26.0],
                 egui::TextEdit::singleline(&mut dialog.folder).hint_text(default_folder),
             );
+            if crate::engine::media::is_media(&dialog.url) {
+                ui.add_space(8.0);
+                ui.label("Quality");
+                let video_pick = |pick: &str| {
+                    pick.ends_with('p')
+                        && pick[..pick.len() - 1].chars().all(|c| c.is_ascii_digit())
+                        && !pick.is_empty()
+                };
+                let candidates: Vec<String> = if dialog
+                    .quality
+                    .as_deref()
+                    .is_some_and(|pick| !video_pick(pick))
+                {
+                    crate::engine::media::audio_qualities()
+                        .iter()
+                        .map(|q| q.label.clone())
+                        .collect()
+                } else {
+                    crate::engine::media::video_qualities()
+                        .iter()
+                        .map(|q| q.label.clone())
+                        .collect()
+                };
+                for candidate in candidates {
+                    let selected = dialog.quality.as_deref() == Some(candidate.as_str());
+                    if ui.selectable_button(candidate, selected).clicked() {
+                        dialog.quality = Some(candidate);
+                    }
+                }
+            }
             ui.add_space(12.0);
             ui.horizontal(|ui| {
                 let can_submit = !dialog.url.trim().is_empty();
@@ -80,7 +113,20 @@ pub fn add_dialog_window(
         } else {
             dialog.folder.trim().to_string()
         };
-        queue.push(DownloadJob::new_queued(url, filename, folder));
+        let quality = if crate::engine::media::is_media(&url) {
+            dialog.quality.clone().or_else(|| {
+                crate::engine::media::resolve(
+                    crate::engine::media::MediaKind::Video,
+                    "720p",
+                )
+                .map(|q| q.label)
+            })
+        } else {
+            None
+        };
+        let mut job = DownloadJob::new_queued(url, filename, folder);
+        job.quality = quality;
+        queue.push(job);
         if let Err(err) = save(queue) {
             eprintln!("lotusdm: queue save failed: {err}");
         }
