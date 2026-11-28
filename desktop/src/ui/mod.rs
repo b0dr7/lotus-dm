@@ -10,6 +10,7 @@ pub mod queue_view;
 pub mod row_view;
 pub mod settings_view;
 pub mod sidebar;
+pub mod spider;
 pub mod theme;
 pub mod tray;
 #[cfg(windows)]

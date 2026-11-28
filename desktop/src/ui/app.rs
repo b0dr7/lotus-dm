@@ -18,6 +18,7 @@ use crate::ui::lifecycle;
 use crate::ui::queue_view::{self, Filter};
 use crate::ui::settings_view;
 use crate::ui::sidebar;
+use crate::ui::spider::SpiderState;
 use crate::ui::theme::{self, Palette, ThemeMode};
 use crate::ui::tray::{self, Tray, TrayAction};
 
@@ -31,7 +32,7 @@ pub struct LotusApp {
     url_input: String,
     site_url: String,
     site_entries: Vec<engine::site_explorer::SiteEntry>,
-    site_loading: bool,
+    spider: SpiderState,
     queue: Vec<DownloadJob>,
     add_dialog: Option<AddDialog>,
     batch_dialog: Option<BatchDialog>,
@@ -55,6 +56,7 @@ enum Nav {
     Home,
     Queue,
     Site,
+    Spider,
     Settings,
     Help,
 }
@@ -98,7 +100,7 @@ impl LotusApp {
             url_input: String::new(),
             site_url: String::new(),
             site_entries: Vec::new(),
-            site_loading: false,
+            spider: SpiderState::default(),
             queue,
             add_dialog: None,
             batch_dialog: None,
@@ -391,6 +393,9 @@ impl LotusApp {
                 if sidebar::nav_pill(ui, "Site", self.nav == Nav::Site, p) {
                     self.nav = Nav::Site;
                 }
+                if sidebar::nav_pill(ui, "Spider", self.nav == Nav::Spider, p) {
+                    self.nav = Nav::Spider;
+                }
                 if sidebar::nav_pill(ui, "Settings", self.nav == Nav::Settings, p) {
                     self.nav = Nav::Settings;
                 }
@@ -660,6 +665,21 @@ impl eframe::App for LotusApp {
                             }
                         });
                     }
+                }
+            }
+            Nav::Spider => {
+                let picked = crate::ui::spider::spider_panel(&mut self.spider, ui, &p);
+                if !picked.is_empty() {
+                    let folder = self.settings.default_folder.clone();
+                    for url in picked {
+                        let filename = queue::derive_filename(&url);
+                        self.queue
+                            .push(DownloadJob::new_queued(url, filename, folder.clone()));
+                    }
+                    if let Err(err) = queue::save(&self.queue) {
+                        eprintln!("lotusdm: queue save failed: {err}");
+                    }
+                    self.start_pending();
                 }
             }
             Nav::Settings => {

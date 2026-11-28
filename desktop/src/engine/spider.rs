@@ -1,20 +1,14 @@
 use std::collections::HashSet;
 use std::time::Duration;
 
-/// One link the spider picked out of a page.
 #[derive(Clone, Debug)]
 pub struct SpiderMatch {
     pub url: String,
-    /// Page the link was found on.
     pub page: String,
 }
 
-/// Hard ceiling on fetched pages, whatever the caller asks for.
 pub const MAX_PAGES: usize = 200;
 
-/// Crawl `start` (same host only) up to `depth` links deep and collect every
-/// link whose path matches `pattern`. An empty pattern keeps everything that
-/// is not a web page (so a crawl of an index page finds the files in it).
 pub fn crawl(
     start: &str,
     pattern: &str,
@@ -22,7 +16,7 @@ pub fn crawl(
     max_pages: usize,
 ) -> Result<Vec<SpiderMatch>, String> {
     let start = normalize_start(start);
-    let origin = origin_of(&start).ok_or("start URL needs http:// or https://")?;
+    let origin = origin_of(&start).ok_or("start URL needs http:
     let budget = max_pages.clamp(1, MAX_PAGES);
     let mut seen: HashSet<String> = HashSet::new();
     let mut collected: HashSet<String> = HashSet::new();
@@ -40,8 +34,6 @@ pub fn crawl(
         let body = match fetch(&page_url) {
             Ok(body) => body,
             Err(err) => {
-                // The first page decides whether the crawl is worth running;
-                // a broken link deeper in the site just gets skipped.
                 if fetched == 0 {
                     return Err(err);
                 }
@@ -87,15 +79,15 @@ fn fetch(url: &str) -> Result<String, String> {
 
 fn normalize_start(raw: &str) -> String {
     let trimmed = raw.trim();
-    if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
+    if trimmed.starts_with("http:
         trimmed.to_string()
     } else {
-        format!("https://{trimmed}")
+        format!("https:
     }
 }
 
 fn origin_of(url: &str) -> Option<String> {
-    let scheme_end = url.find("://")?;
+    let scheme_end = url.find(":
     let after = &url[scheme_end + 3..];
     let host_end = after.find('/').unwrap_or(after.len());
     if host_end == 0 {
@@ -118,12 +110,12 @@ fn resolve(base: &str, href: &str) -> Option<String> {
         return None;
     }
     let origin = origin_of(base)?;
-    if lower.starts_with("http://") || lower.starts_with("https://") {
+    if lower.starts_with("http:
         return Some(href.to_string());
     }
-    if let Some(rest) = href.strip_prefix("//") {
-        let scheme = &base[..base.find("://")?];
-        return Some(format!("{scheme}://{rest}"));
+    if let Some(rest) = href.strip_prefix("
+        let scheme = &base[..base.find(":
+        return Some(format!("{scheme}:
     }
     if href.starts_with('/') {
         return Some(format!("{origin}{href}"));
@@ -134,9 +126,8 @@ fn resolve(base: &str, href: &str) -> Option<String> {
     Some(format!("{}{}", &base[..dir_end], href))
 }
 
-/// Drops `.` and `..` segments so two spellings of one link compare equal.
 fn clean(url: &str) -> String {
-    let Some(scheme_end) = url.find("://") else {
+    let Some(scheme_end) = url.find(":
         return url.to_string();
     };
     let (scheme, rest) = url.split_at(scheme_end + 3);
@@ -153,7 +144,6 @@ fn clean(url: &str) -> String {
     format!("{scheme}{}", segments.join("/"))
 }
 
-/// Path only: queries and fragments never decide what a link is.
 fn path_of(url: &str) -> &str {
     let rest = url.split('#').next().unwrap_or(url);
     rest.split('?').next().unwrap_or(rest)
@@ -176,6 +166,9 @@ fn is_page(url: &str) -> bool {
 }
 
 fn wants(url: &str, pattern: &str) -> bool {
+    if is_page(url) {
+        return false;
+    }
     let pattern = pattern.trim().to_ascii_lowercase();
     if pattern.is_empty() {
         return true;
@@ -190,46 +183,46 @@ mod tests {
     #[test]
     fn relative_links_resolve_against_the_page() {
         assert_eq!(
-            resolve("https://a.example/files/page.html", "sub/x.zip").as_deref(),
-            Some("https://a.example/files/sub/x.zip")
+            resolve("https:
+            Some("https:
         );
         assert_eq!(
-            resolve("https://a.example/files/page.html", "/root.zip").as_deref(),
-            Some("https://a.example/root.zip")
+            resolve("https:
+            Some("https:
         );
         assert_eq!(
-            resolve("https://a.example/files/", "../up.zip").as_deref(),
-            Some("https://a.example/files/../up.zip")
+            resolve("https:
+            Some("https:
         );
-        assert_eq!(resolve("https://a.example/", "javascript:void(0)"), None);
+        assert_eq!(resolve("https:
     }
 
     #[test]
     fn dot_segments_are_cleaned_up() {
         assert_eq!(
-            clean("https://a.example/files/../up.zip"),
-            "https://a.example/up.zip"
+            clean("https:
+            "https:
         );
         assert_eq!(
-            clean("https://a.example/./a/./b.zip"),
-            "https://a.example/a/b.zip"
+            clean("https:
+            "https:
         );
     }
 
     #[test]
     fn pages_are_told_apart_from_files() {
-        assert!(is_page("https://a.example/files/"));
-        assert!(is_page("https://a.example/index.html"));
-        assert!(is_page("https://a.example/about"));
-        assert!(!is_page("https://a.example/a.zip"));
-        assert!(!is_page("https://a.example/a.zip?v=1"));
+        assert!(is_page("https:
+        assert!(is_page("https:
+        assert!(is_page("https:
+        assert!(!is_page("https:
+        assert!(!is_page("https:
     }
 
     #[test]
     fn an_empty_pattern_keeps_files_only() {
-        assert!(wants("https://a.example/a.zip", ""));
-        assert!(!wants("https://a.example/a.html", ""));
-        assert!(wants("https://a.example/a.ZIP", ".zip"));
-        assert!(!wants("https://a.example/a.rar", ".zip"));
+        assert!(wants("https:
+        assert!(!wants("https:
+        assert!(wants("https:
+        assert!(!wants("https:
     }
 }

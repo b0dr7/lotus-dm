@@ -1,5 +1,3 @@
-use crate::core::queue::DownloadJob;
-
 #[derive(Clone, Debug)]
 pub struct SiteEntry {
     pub name: String,
