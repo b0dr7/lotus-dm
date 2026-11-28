@@ -58,3 +58,9 @@ jobs:
 
       - name: Cargo check
         run: cargo check --locked --all-targets
+
+      # `cargo check --all-targets` only compiles the #[cfg(test)] modules. This
+      # runs them, so the torrent intake, FTP URL and MSE policy tests are
+      # actual checks rather than dead code that happens to type-check.
+      - name: Cargo test
+        run: cargo test --locked
