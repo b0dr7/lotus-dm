@@ -91,7 +91,7 @@ class DownloadEngine private constructor(context: Context) {
 
     private class Entry(
         val id: String,
-        val url: String,
+        @Volatile var url: String,
         @Volatile var fileName: String,
         val dir: File,
         @Volatile var state: JobState,
