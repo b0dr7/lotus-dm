@@ -71,6 +71,7 @@ impl ZipPick {
         let folder = std::path::PathBuf::from(folder);
         let control = self.control.clone();
         let (tx, rx) = mpsc::channel();
+        let count = wanted.len();
         std::thread::spawn(move || {
             let mut written = 0usize;
             let mut failures: Vec<String> = Vec::new();
@@ -88,7 +89,7 @@ impl ZipPick {
             let _ = tx.send(line);
         });
         self.pulling = Some(rx);
-        self.status = format!("Pulling out {} files...", wanted.len());
+        self.status = format!("Pulling out {} files...", count);
     }
 
     fn poll(&mut self) {
