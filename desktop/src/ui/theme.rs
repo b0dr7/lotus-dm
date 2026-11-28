@@ -86,7 +86,10 @@ fn system_prefers_light() -> bool {
 
 #[cfg(windows)]
 fn detect_system_light() -> bool {
+    use std::os::windows::process::CommandExt;
     use std::process::Command;
+    // CREATE_NO_WINDOW: console-subsystem children spawned from a GUI
+    // process would otherwise get their own console window each run.
     let output = Command::new("reg")
         .args([
             "query",
@@ -94,6 +97,7 @@ fn detect_system_light() -> bool {
             "/v",
             "AppsUseLightTheme",
         ])
+        .creation_flags(0x0000_0080)
         .output();
     match output {
         Ok(out) => String::from_utf8_lossy(&out.stdout).contains("0x1"),
