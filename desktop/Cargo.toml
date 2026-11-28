@@ -15,11 +15,18 @@ rfd = "0.18.0"
 suppaftp = { version = "12", default-features = false }
 # BitTorrent engine (see src/engine/torrent). librqbit is async, so it needs a
 # tokio runtime and pulls its own TLS stack for .torrent links.
-# MSE/PE is not in any librqbit release, so this pins the rqbit MSE pull
-# request (ikatson/rqbit#633) by revision. Its base is 9.0.1, not the 9.1 we
-# used before, so go back to the published crate once the PR lands upstream.
-librqbit = { git = "https://github.com/lingdiansr/rqbit", rev = "9b7877cbd884f77c8923e81287b6ed4bf2b2c67f" }
 tokio = { version = "1", features = ["rt-multi-thread", "net", "time", "io-util", "sync"] }
+
+# MSE/PE is not in any librqbit release, so 64-bit builds pin the rqbit MSE pull
+# request (ikatson/rqbit#633) by revision. Its DH-768 code assumes 64-bit words
+# and cannot compile for 32-bit targets, so x86 stays on the released crate and
+# loses only the encryption modes (see `torrent::apply_mse`). Go back to the
+# published crate everywhere once the PR lands upstream.
+[target.'cfg(target_pointer_width = "64")'.dependencies]
+librqbit = { git = "https://github.com/lingdiansr/rqbit", rev = "9b7877cbd884f77c8923e81287b6ed4bf2b2c67f" }
+
+[target.'cfg(target_pointer_width = "32")'.dependencies]
+librqbit = "9.1.0"
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"

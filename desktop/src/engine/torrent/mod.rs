@@ -14,7 +14,6 @@
 
 use std::sync::{Mutex, PoisonError};
 
-use librqbit::MseMode;
 use serde::{Deserialize, Serialize};
 
 pub mod intake;
@@ -50,15 +49,22 @@ impl EncryptionMode {
     }
 }
 
-impl From<EncryptionMode> for MseMode {
-    fn from(mode: EncryptionMode) -> Self {
-        match mode {
-            EncryptionMode::Disabled => MseMode::Disabled,
-            EncryptionMode::Enabled => MseMode::Enabled,
-            EncryptionMode::Forced => MseMode::Forced,
-        }
-    }
+/// Hand the encryption mode to librqbit. Only the 64-bit build carries MSE:
+/// the pinned rqbit pull request's DH-768 code is 64-bit only, so 32-bit
+/// builds use the released crate, which has no `mse_mode` at all.
+#[cfg(target_pointer_width = "64")]
+pub fn apply_mse(opts: &mut librqbit::SessionOptions, mode: EncryptionMode) {
+    use librqbit::MseMode;
+
+    opts.mse_mode = match mode {
+        EncryptionMode::Disabled => MseMode::Disabled,
+        EncryptionMode::Enabled => MseMode::Enabled,
+        EncryptionMode::Forced => MseMode::Forced,
+    };
 }
+
+#[cfg(not(target_pointer_width = "64"))]
+pub fn apply_mse(_opts: &mut librqbit::SessionOptions, _mode: EncryptionMode) {}
 
 /// What the queue asks of the torrent engine: the encryption policy, the
 /// peer-discovery switches and how long to seed.
@@ -116,14 +122,16 @@ pub fn is_torrent(raw: &str) -> bool {
     intake::parse(raw).is_some()
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_pointer_width = "64"))]
 mod tests {
     use super::*;
 
     #[test]
     fn encryption_modes_map_onto_rqbits_mse_modes() {
-        assert_eq!(MseMode::from(EncryptionMode::Disabled), MseMode::Disabled);
-        assert_eq!(MseMode::from(EncryptionMode::Enabled), MseMode::Enabled);
-        assert_eq!(MseMode::from(EncryptionMode::Forced), MseMode::Forced);
+        let mut opts = librqbit::SessionOptions::default();
+        apply_mse(&mut opts, EncryptionMode::Forced);
+        assert_eq!(opts.mse_mode, librqbit::MseMode::Forced);
+        apply_mse(&mut opts, EncryptionMode::Disabled);
+        assert_eq!(opts.mse_mode, librqbit::MseMode::Disabled);
     }
 }
