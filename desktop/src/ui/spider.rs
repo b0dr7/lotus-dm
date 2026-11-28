@@ -106,7 +106,7 @@ pub fn spider_panel(state: &mut SpiderState, ui: &mut egui::Ui, p: &Palette) -> 
         let width = (ui.available_width() - 210.0).max(160.0);
         ui.add_sized(
             [width, 28.0],
-            egui::TextEdit::singleline(&mut state.url).hint_text("https:
+            egui::TextEdit::singleline(&mut state.url).hint_text("https://example.com"),
         );
         ui.add_sized(
             [120.0, 28.0],
