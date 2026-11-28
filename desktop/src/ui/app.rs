@@ -209,35 +209,8 @@ impl LotusApp {
                 ctx.request_repaint();
                 ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
             }
-            TrayAction::PauseAll => {
-                for job in self.queue.iter() {
-                    if job.status == JobStatus::Running {
-                        if let Some(control) = self.controls.get(&job.id) {
-                            control.request_pause();
-                        }
-                    }
-                }
-            }
-            TrayAction::ResumeAll => {
-                for index in 0..self.queue.len() {
-                    let id = self.queue[index].id.clone();
-                    match self.queue[index].status {
-                        JobStatus::Paused => {
-                            if let Some(control) = self.controls.get(&id) {
-                                control.request_resume();
-                            } else {
-                                let pending = self.queue[index].clone();
-                                lifecycle::spawn_job(&pending, &mut self.controls, &self.event_tx);
-                            }
-                        }
-                        JobStatus::Queued => {
-                            let pending = self.queue[index].clone();
-                            lifecycle::spawn_job(&pending, &mut self.controls, &self.event_tx);
-                        }
-                        _ => {}
-                    }
-                }
-            }
+            TrayAction::PauseAll => self.pause_all(),
+            TrayAction::ResumeAll => self.resume_all(),
             TrayAction::Speed(kbps) => {
                 self.settings.global_speed_limit_kbps = kbps;
                 self.settings.traffic_mode = settings::TrafficMode::Custom;
@@ -249,6 +222,40 @@ impl LotusApp {
             TrayAction::Quit => {
                 self.quitting = true;
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            }
+        }
+    }
+
+    /// Pause every download that is currently running.
+    fn pause_all(&mut self) {
+        for job in self.queue.iter() {
+            if job.status == JobStatus::Running {
+                if let Some(control) = self.controls.get(&job.id) {
+                    control.request_pause();
+                }
+            }
+        }
+    }
+
+    /// Start or resume everything that is not moving: paused jobs resume in
+    /// place when their worker is still alive, and anything queued is spawned.
+    fn resume_all(&mut self) {
+        for index in 0..self.queue.len() {
+            match self.queue[index].status {
+                JobStatus::Paused => {
+                    let id = self.queue[index].id.clone();
+                    if let Some(control) = self.controls.get(&id) {
+                        control.request_resume();
+                    } else {
+                        let pending = self.queue[index].clone();
+                        lifecycle::spawn_job(&pending, &mut self.controls, &self.event_tx);
+                    }
+                }
+                JobStatus::Queued => {
+                    let pending = self.queue[index].clone();
+                    lifecycle::spawn_job(&pending, &mut self.controls, &self.event_tx);
+                }
+                _ => {}
             }
         }
     }
@@ -459,7 +466,7 @@ impl LotusApp {
             .show(ctx, |ui| {
                 ui.add_space(9.0);
                 ui.horizontal(|ui| {
-                    let field_w = (ui.available_width() - 204.0).max(180.0);
+                    let field_w = (ui.available_width() - 296.0).max(150.0);
                     let edit = ui.add_sized(
                         [field_w, 30.0],
                         egui::TextEdit::singleline(&mut self.url_input)
@@ -473,9 +480,18 @@ impl LotusApp {
                     if ui.add_enabled(can_add, add).clicked() || (enter && can_add) {
                         self.submit_url();
                     }
-                    let more = egui::Button::new("Paste list").min_size(Vec2::new(96.0, 30.0));
+                    let more = egui::Button::new("Paste list").min_size(Vec2::new(88.0, 30.0));
                     if ui.add(more).clicked() {
                         self.batch_dialog = Some(BatchDialog::default());
+                    }
+                    let pause_all = egui::Button::new("Pause all").min_size(Vec2::new(84.0, 30.0));
+                    if ui.add(pause_all).clicked() {
+                        self.pause_all();
+                    }
+                    let resume_all =
+                        egui::Button::new("Resume all").min_size(Vec2::new(90.0, 30.0));
+                    if ui.add(resume_all).clicked() {
+                        self.resume_all();
                     }
                 });
                 ui.add_space(9.0);
