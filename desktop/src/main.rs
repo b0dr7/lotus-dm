@@ -21,18 +21,7 @@ mod single_instance {
         fn GetLastError() -> u32;
     }
 
-    #[link(name = "user32")]
-    extern "system" {
-        fn FindWindowW(lpClassName: *const u16, lpWindowName: *const u16) -> *mut c_void;
-        fn SetForegroundWindow(hWnd: *mut c_void) -> i32;
-        fn ShowWindow(hWnd: *mut c_void, nCmdShow: i32) -> i32;
-        fn IsIconic(hWnd: *mut c_void) -> i32;
-        fn IsWindowVisible(hWnd: *mut c_void) -> i32;
-    }
-
     const ERROR_ALREADY_EXISTS: u32 = 183;
-    const SW_SHOW: i32 = 5;
-    const SW_RESTORE: i32 = 9;
 
     pub fn ensure_single_instance() -> bool {
         let name: Vec<u16> = std::ffi::OsStr::new("LotusDM_SingleInstance_Mutex")
@@ -44,24 +33,9 @@ mod single_instance {
             return true;
         }
         if unsafe { GetLastError() } == ERROR_ALREADY_EXISTS {
-            // Another instance is running: bring its window forward.
-            let title: Vec<u16> = std::ffi::OsStr::new("Lotus Download Manager")
-                .encode_wide()
-                .chain(std::iter::once(0))
-                .collect();
-            let hwnd = unsafe { FindWindowW(std::ptr::null(), title.as_ptr()) };
-            if !hwnd.is_null() {
-                unsafe {
-                    // The running instance may be hiding in the tray.
-                    if IsWindowVisible(hwnd) == 0 {
-                        ShowWindow(hwnd, SW_SHOW);
-                    }
-                    if IsIconic(hwnd) != 0 {
-                        ShowWindow(hwnd, SW_RESTORE);
-                    }
-                    SetForegroundWindow(hwnd);
-                }
-            }
+            // Another instance is running: bring its window back, including
+            // when it is parked in the tray.
+            crate::core::sys::show_main_window();
             return false;
         }
         true
@@ -81,13 +55,20 @@ fn main() -> eframe::Result {
     };
     // "Start hidden in the tray" means no window at launch, only the icon.
     let start_hidden = crate::core::settings::load().start_hidden;
+    let mut viewport = egui::ViewportBuilder::default()
+        .with_title(crate::core::sys::MAIN_WINDOW_TITLE)
+        .with_icon(std::sync::Arc::new(icon))
+        .with_inner_size([1040.0, 680.0])
+        .with_min_inner_size([760.0, 520.0]);
+    if start_hidden {
+        // Created out of the way instead of invisible: Windows sends no
+        // redraws to an invisible window, and eframe runs App::update from
+        // redraws. The first frame parks it properly (see
+        // core::sys::hide_main_window).
+        viewport = viewport.with_position([-32_000.0, -32_000.0]);
+    }
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_title("Lotus Download Manager")
-            .with_icon(std::sync::Arc::new(icon))
-            .with_visible(!start_hidden)
-            .with_inner_size([1040.0, 680.0])
-            .with_min_inner_size([760.0, 520.0]),
+        viewport,
         ..Default::default()
     };
 
