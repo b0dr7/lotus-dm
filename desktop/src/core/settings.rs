@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use crate::engine::torrent::EncryptionMode;
+use crate::engine::torrent::{EncryptionMode, Policy};
 use crate::ui::theme::ThemeMode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -60,6 +60,14 @@ pub struct Settings {
     pub notifications: bool,
     /// MSE policy for torrent downloads (see `engine::torrent`).
     pub torrent_encryption: EncryptionMode,
+    /// Peer discovery: DHT and LAN local service discovery. Session-wide, so
+    /// a change applies the next time the app starts.
+    pub torrent_dht: bool,
+    pub torrent_lsd: bool,
+    /// Stop seeding at this share ratio and/or after this many minutes.
+    /// 0 for both means "stop as soon as the download is complete".
+    pub torrent_seed_ratio: f64,
+    pub torrent_seed_minutes: u64,
 }
 
 impl Default for Settings {
@@ -83,6 +91,24 @@ impl Default for Settings {
             start_hidden: false,
             notifications: true,
             torrent_encryption: EncryptionMode::Disabled,
+            torrent_dht: true,
+            torrent_lsd: true,
+            torrent_seed_ratio: 0.0,
+            torrent_seed_minutes: 0,
+        }
+    }
+}
+
+impl Settings {
+    /// The torrent engine's policy, published to `engine::torrent` at startup
+    /// and again whenever one of these settings changes.
+    pub fn torrent_policy(&self) -> Policy {
+        Policy {
+            encryption: self.torrent_encryption,
+            dht: self.torrent_dht,
+            lsd: self.torrent_lsd,
+            seed_ratio: self.torrent_seed_ratio,
+            seed_minutes: self.torrent_seed_minutes,
         }
     }
 }

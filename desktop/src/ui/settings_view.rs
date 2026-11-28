@@ -120,6 +120,58 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
     }
     ui.add_space(12.0);
 
+    ui.label(RichText::new("Torrents").color(p.text));
+    ui.label(
+        RichText::new(
+            "DHT and local-network discovery are fixed when the torrent engine starts, so \
+             changing them takes effect the next time Lotus starts.",
+        )
+        .color(p.muted),
+    );
+    ui.add_space(4.0);
+    let mut discovery_changed = ui
+        .checkbox(
+            &mut cfg.torrent_dht,
+            "Use the DHT (needed for magnet links without trackers)",
+        )
+        .changed();
+    discovery_changed |= ui
+        .checkbox(&mut cfg.torrent_lsd, "Find peers on the local network")
+        .changed();
+    if discovery_changed {
+        engine::torrent::set_policy(cfg.torrent_policy());
+        persist(cfg);
+    }
+    ui.add_space(8.0);
+    ui.label(
+        RichText::new(
+            "Stop seeding at this share ratio and/or after this many minutes. 0 and 0 stop \
+             as soon as the download is complete.",
+        )
+        .color(p.muted),
+    );
+    let mut seed_changed = ui
+        .add(
+            egui::DragValue::new(&mut cfg.torrent_seed_ratio)
+                .range(0.0..=100.0)
+                .speed(0.1)
+                .suffix(" ratio"),
+        )
+        .changed();
+    seed_changed |= ui
+        .add(
+            egui::DragValue::new(&mut cfg.torrent_seed_minutes)
+                .range(0..=10_080u64)
+                .speed(5)
+                .suffix(" min"),
+        )
+        .changed();
+    if seed_changed {
+        engine::torrent::set_policy(cfg.torrent_policy());
+        persist(cfg);
+    }
+    ui.add_space(12.0);
+
     ui.label(RichText::new("Auto-shutdown").color(p.text));
     ui.label(RichText::new("Close the app automatically once the queue finishes.").color(p.muted));
     if ui.checkbox(&mut cfg.auto_shutdown, "Shut down when the queue is done").changed() {

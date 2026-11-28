@@ -7,6 +7,10 @@
 //!
 //! Intake accepts magnet links, http(s) links to a `.torrent` file and local
 //! `.torrent` files; `engine::spawn_download` routes every such job here.
+//!
+//! Two FDM switches have no counterpart in librqbit and are therefore always
+//! in one state, with no dead toggle: sequential download (librqbit only ever
+//! fetches pieces in file order) and PEX (always enabled, no API switch).
 
 use std::sync::{Mutex, PoisonError};
 
@@ -38,21 +42,52 @@ pub enum EncryptionMode {
 /// fallback it already promises, and `Forced` refuses the torrent.
 pub const MSE_SUPPORTED: bool = false;
 
-static ENCRYPTION: Mutex<EncryptionMode> = Mutex::new(EncryptionMode::Disabled);
-
-pub fn encryption() -> EncryptionMode {
-    *ENCRYPTION.lock().unwrap_or_else(PoisonError::into_inner)
+/// What the queue asks of the torrent engine: the encryption policy, the
+/// peer-discovery switches and how long to seed.
+#[derive(Clone, Copy, Debug)]
+pub struct Policy {
+    pub encryption: EncryptionMode,
+    /// Find peers through the DHT. Off means magnets without a tracker cannot
+    /// resolve, and `.torrent` jobs only use trackers and their peer list.
+    pub dht: bool,
+    /// Local Service Discovery (BEP-14) on the LAN.
+    pub lsd: bool,
+    /// Stop seeding at this share ratio (uploaded / downloaded). 0 together
+    /// with `seed_minutes` 0 means "stop as soon as the files are complete".
+    pub seed_ratio: f64,
+    /// Stop seeding after this many minutes; 0 for no time limit.
+    pub seed_minutes: u64,
 }
 
-/// Set the MSE policy. Applies to torrents started after the call; running
-/// torrents keep the mode they were admitted with.
-pub fn set_encryption(mode: EncryptionMode) {
-    *ENCRYPTION.lock().unwrap_or_else(PoisonError::into_inner) = mode;
+const DEFAULT_POLICY: Policy = Policy {
+    encryption: EncryptionMode::Disabled,
+    dht: true,
+    lsd: true,
+    seed_ratio: 0.0,
+    seed_minutes: 0,
+};
+
+impl Default for Policy {
+    fn default() -> Self {
+        DEFAULT_POLICY
+    }
+}
+
+static POLICY: Mutex<Policy> = Mutex::new(DEFAULT_POLICY);
+
+pub fn policy() -> Policy {
+    *POLICY.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// Set the policy. The DHT/LSD switches are session-wide, so a change applies
+/// the next time the app starts; running torrents keep what they started with.
+pub fn set_policy(new: Policy) {
+    *POLICY.lock().unwrap_or_else(PoisonError::into_inner) = new;
 }
 
 /// Gate the worker runs before touching the network.
 pub(crate) fn check_encryption() -> Result<(), String> {
-    if encryption() == EncryptionMode::Forced && !MSE_SUPPORTED {
+    if policy().encryption == EncryptionMode::Forced && !MSE_SUPPORTED {
         return Err(
             "encrypted peer connections (MSE) are unavailable in this build, \
              so forced encryption would still send plaintext; set torrent \
@@ -74,11 +109,12 @@ mod tests {
 
     #[test]
     fn forced_encryption_is_refused_without_mse() {
-        set_encryption(EncryptionMode::Forced);
+        set_policy(Policy {
+            encryption: EncryptionMode::Forced,
+            ..Policy::default()
+        });
         assert!(check_encryption().is_err());
-        set_encryption(EncryptionMode::Enabled);
-        assert!(check_encryption().is_ok());
-        set_encryption(EncryptionMode::Disabled);
+        set_policy(Policy::default());
         assert!(check_encryption().is_ok());
     }
 }
