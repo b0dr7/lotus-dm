@@ -33,6 +33,16 @@ pub enum EncryptionMode {
     Forced,
 }
 
+impl EncryptionMode {
+    pub fn label(self) -> &'static str {
+        match self {
+            EncryptionMode::Disabled => "Disabled",
+            EncryptionMode::Enabled => "Enabled",
+            EncryptionMode::Forced => "Forced",
+        }
+    }
+}
+
 /// librqbit implements no MSE/PE handshake in any release so far: there is no
 /// RC4/Diffie-Hellman layer, and the upstream work is still an open pull
 /// request (ikatson/rqbit#633). Encrypted peer traffic is not possible here.

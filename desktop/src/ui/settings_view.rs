@@ -121,6 +121,41 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
     ui.add_space(12.0);
 
     ui.label(RichText::new("Torrents").color(p.text));
+    ui.label(RichText::new("Protocol encryption").color(p.text));
+    ui.label(
+        RichText::new(if engine::torrent::MSE_SUPPORTED {
+            "Encrypted peer connections (MSE)."
+        } else {
+            "MSE is not available in this build, so Enabled still falls back to plaintext \
+             and Forced refuses to start a torrent instead of sending it unencrypted."
+        })
+        .color(p.muted),
+    );
+    ui.add_space(6.0);
+    let mut encryption = cfg.torrent_encryption;
+    ui.horizontal_wrapped(|ui| {
+        for candidate in [
+            engine::torrent::EncryptionMode::Disabled,
+            engine::torrent::EncryptionMode::Enabled,
+            engine::torrent::EncryptionMode::Forced,
+        ] {
+            if ui
+                .selectable_label(encryption == candidate, candidate.label())
+                .clicked()
+            {
+                encryption = candidate;
+            }
+        }
+    });
+    if encryption != cfg.torrent_encryption {
+        cfg.torrent_encryption = encryption;
+        // No restart needed: the policy is read when a torrent starts, so the
+        // next one is admitted (or refused) under the new mode.
+        engine::torrent::set_policy(cfg.torrent_policy());
+        persist(cfg);
+    }
+    ui.add_space(10.0);
+
     ui.label(
         RichText::new(
             "DHT and local-network discovery are fixed when the torrent engine starts, so \
