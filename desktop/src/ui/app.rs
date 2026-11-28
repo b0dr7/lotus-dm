@@ -29,6 +29,9 @@ pub struct LotusApp {
     filter: Filter,
     selected: Option<String>,
     url_input: String,
+    site_url: String,
+    site_entries: Vec<engine::site_explorer::SiteEntry>,
+    site_loading: bool,
     queue: Vec<DownloadJob>,
     add_dialog: Option<AddDialog>,
     batch_dialog: Option<BatchDialog>,
@@ -51,6 +54,7 @@ pub struct LotusApp {
 enum Nav {
     Home,
     Queue,
+    Site,
     Settings,
     Help,
 }
@@ -92,6 +96,9 @@ impl LotusApp {
             filter: Filter::All,
             selected: None,
             url_input: String::new(),
+            site_url: String::new(),
+            site_entries: Vec::new(),
+            site_loading: false,
             queue,
             add_dialog: None,
             batch_dialog: None,
@@ -381,6 +388,9 @@ impl LotusApp {
                 if sidebar::nav_pill(ui, "Queue", self.nav == Nav::Queue, p) {
                     self.nav = Nav::Queue;
                 }
+                if sidebar::nav_pill(ui, "Site", self.nav == Nav::Site, p) {
+                    self.nav = Nav::Site;
+                }
                 if sidebar::nav_pill(ui, "Settings", self.nav == Nav::Settings, p) {
                     self.nav = Nav::Settings;
                 }
@@ -397,7 +407,7 @@ impl LotusApp {
     }
 
     fn details_panel(&mut self, ctx: &egui::Context, p: &Palette) {
-        if !matches!(self.nav, Nav::Home | Nav::Queue) {
+        if !matches!(self.nav, Nav::Home | Nav::Queue | Nav::Site) {
             return;
         }
         let Some(id) = self.selected.clone() else {
@@ -585,28 +595,46 @@ impl eframe::App for LotusApp {
                     self.selected = Some(id);
                 }
             }
-            Nav::Queue => {
+            Nav::Site => {
                 ui.add_space(16.0);
-                ui.heading("Queue");
+                ui.heading("Site Explorer");
                 ui.add_space(12.0);
-                if queue_view::filters_row(ui, &self.queue, &mut self.filter, &p) {
-                    self.queue.retain(|job| job.status != JobStatus::Done);
-                    if let Err(err) = queue::save(&self.queue) {
-                        eprintln!("lotusdm: queue save failed: {err}");
+                ui.horizontal(|ui| {
+                    ui.add_sized(
+                        [ui.available_width() - 80.0, 28.0],
+                        egui::TextEdit::singleline(&mut self.site_url)
+                            .hint_text("https://example.com/files/"),
+                    );
+                    if ui.button("Browse").clicked() && !self.site_url.trim().is_empty() {
+                        let url = self.site_url.trim().to_string();
+                        match engine::site_explorer::fetch(&url) {
+                            Ok(entries) => self.site_entries = entries,
+                            Err(_) => self.site_entries.clear(),
+                        }
                     }
-                }
+                });
                 ui.add_space(12.0);
-                let picked = queue_view::list_panel(
-                    ui,
-                    &mut self.queue,
-                    self.filter,
-                    &self.selected,
-                    &mut self.controls,
-                    &self.event_tx,
-                    &p,
-                );
-                if let Some(id) = picked {
-                    self.selected = Some(id);
+                if self.site_entries.is_empty() {
+                    ui.label(egui::RichText::new("Enter a URL and click Browse.").color(p.muted));
+                } else {
+                    for entry in &self.site_entries {
+                        ui.horizontal(|ui| {
+                            let icon = if entry.is_dir { "D" } else { "F" };
+                            ui.label(format!("{icon} {}", entry.name));
+                            if !entry.is_dir {
+                                if ui.button("Download").clicked() {
+                                    let url = entry.url.clone();
+                                    let filename = entry.name.clone();
+                                    let folder = self.settings.default_folder.clone();
+                                    self.queue.push(DownloadJob::new_queued(url, filename, folder));
+                                    if let Err(err) = queue::save(&self.queue) {
+                                        eprintln!("lotusdm: queue save failed: {err}");
+                                    }
+                                    self.start_pending();
+                                }
+                            }
+                        });
+                    }
                 }
             }
             Nav::Settings => {
