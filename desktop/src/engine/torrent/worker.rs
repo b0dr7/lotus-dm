@@ -32,11 +32,6 @@ pub fn run(job: DownloadJob, control: Arc<Control>, tx: Sender<Event>) {
         return;
     };
 
-    if let Err(err) = super::check_encryption() {
-        fail(&tx, &job.id, err);
-        return;
-    }
-
     if let Err(err) = std::fs::create_dir_all(&job.folder) {
         fail(&tx, &job.id, format!("cannot create {}: {err}", job.folder));
         return;

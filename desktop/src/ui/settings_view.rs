@@ -123,12 +123,11 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
     ui.label(RichText::new("Torrents").color(p.text));
     ui.label(RichText::new("Protocol encryption").color(p.text));
     ui.label(
-        RichText::new(if engine::torrent::MSE_SUPPORTED {
-            "Encrypted peer connections (MSE)."
-        } else {
-            "MSE is not available in this build, so Enabled still falls back to plaintext \
-             and Forced refuses to start a torrent instead of sending it unencrypted."
-        })
+        RichText::new(
+            "MSE. Enabled prefers encrypted peers and still allows plaintext; Forced only \
+             connects to peers that complete the handshake. rqbit sets this per session, so \
+             it applies when the torrent engine next starts.",
+        )
         .color(p.muted),
     );
     ui.add_space(6.0);
@@ -149,8 +148,8 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
     });
     if encryption != cfg.torrent_encryption {
         cfg.torrent_encryption = encryption;
-        // No restart needed: the policy is read when a torrent starts, so the
-        // next one is admitted (or refused) under the new mode.
+        // rqbit only takes the encryption mode when it builds the session, so
+        // this lands with the next torrent engine start.
         engine::torrent::set_policy(cfg.torrent_policy());
         persist(cfg);
     }

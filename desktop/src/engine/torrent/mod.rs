@@ -14,6 +14,7 @@
 
 use std::sync::{Mutex, PoisonError};
 
+use librqbit::MseMode;
 use serde::{Deserialize, Serialize};
 
 pub mod intake;
@@ -22,6 +23,12 @@ pub mod worker;
 
 /// MSE/PE (encrypted BitTorrent peer connections) policy, mirroring the three
 /// modes FDM exposes.
+///
+/// The encryption itself comes from the rqbit MSE pull request
+/// (ikatson/rqbit#633), which this build depends on as a pinned git revision
+/// because no librqbit release contains it yet: `Disabled` is plaintext only,
+/// `Enabled` prefers encrypted peers and redials plaintext when a peer cannot
+/// complete the handshake, and `Forced` drops peers that do not.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EncryptionMode {
     /// Plaintext peer connections only.
@@ -43,14 +50,15 @@ impl EncryptionMode {
     }
 }
 
-/// librqbit implements no MSE/PE handshake in any release so far: there is no
-/// RC4/Diffie-Hellman layer, and the upstream work is still an open pull
-/// request (ikatson/rqbit#633). Encrypted peer traffic is not possible here.
-///
-/// The modes are still honoured as far as they can be, so nothing is silently
-/// downgraded: `Disabled` runs plaintext, `Enabled` allows the plaintext
-/// fallback it already promises, and `Forced` refuses the torrent.
-pub const MSE_SUPPORTED: bool = false;
+impl From<EncryptionMode> for MseMode {
+    fn from(mode: EncryptionMode) -> Self {
+        match mode {
+            EncryptionMode::Disabled => MseMode::Disabled,
+            EncryptionMode::Enabled => MseMode::Enabled,
+            EncryptionMode::Forced => MseMode::Forced,
+        }
+    }
+}
 
 /// What the queue asks of the torrent engine: the encryption policy, the
 /// peer-discovery switches and how long to seed.
@@ -89,23 +97,11 @@ pub fn policy() -> Policy {
     *POLICY.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-/// Set the policy. The DHT/LSD switches are session-wide, so a change applies
-/// the next time the app starts; running torrents keep what they started with.
+/// Set the policy. rqbit takes the encryption mode and the DHT/LSD switches
+/// per session, so a change applies when the torrent session next starts: on
+/// the first torrent after launch, or on the next launch if one is running.
 pub fn set_policy(new: Policy) {
     *POLICY.lock().unwrap_or_else(PoisonError::into_inner) = new;
-}
-
-/// Gate the worker runs before touching the network.
-pub(crate) fn check_encryption() -> Result<(), String> {
-    if policy().encryption == EncryptionMode::Forced && !MSE_SUPPORTED {
-        return Err(
-            "encrypted peer connections (MSE) are unavailable in this build, \
-             so forced encryption would still send plaintext; set torrent \
-             encryption to Enabled or Disabled to download this torrent"
-                .to_string(),
-        );
-    }
-    Ok(())
 }
 
 /// True when the queue URL belongs to the torrent engine.
@@ -118,13 +114,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn forced_encryption_is_refused_without_mse() {
-        set_policy(Policy {
-            encryption: EncryptionMode::Forced,
-            ..Policy::default()
-        });
-        assert!(check_encryption().is_err());
-        set_policy(Policy::default());
-        assert!(check_encryption().is_ok());
+    fn encryption_modes_map_onto_rqbits_mse_modes() {
+        assert_eq!(MseMode::from(EncryptionMode::Disabled), MseMode::Disabled);
+        assert_eq!(MseMode::from(EncryptionMode::Enabled), MseMode::Enabled);
+        assert_eq!(MseMode::from(EncryptionMode::Forced), MseMode::Forced);
     }
 }
