@@ -10,6 +10,12 @@ on:
     paths:
       - "android/**"
       - ".github/workflows/android.yml"
+  workflow_dispatch:
+    inputs:
+      fresh:
+        description: "Ignore the Gradle caches and rebuild from scratch"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -35,4 +41,9 @@ jobs:
       # assembleDebug, not just compileDebugKotlin: the torrent engine ships
       # native libraries and a minSdk of its own, so packaging has to run too.
       - name: Assemble debug APKs
-        run: gradle --no-daemon --stacktrace assembleDebug
+        run: |
+          if [ "${{ inputs.fresh }}" = "true" ]; then
+            gradle --no-daemon --stacktrace --no-build-cache --refresh-dependencies assembleDebug
+          else
+            gradle --no-daemon --stacktrace assembleDebug
+          fi

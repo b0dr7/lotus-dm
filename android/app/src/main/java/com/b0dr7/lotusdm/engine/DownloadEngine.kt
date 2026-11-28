@@ -368,6 +368,7 @@ class DownloadEngine private constructor(context: Context) {
     fun clearCompleted() {
         val finished = entries.values.filter { it.state == JobState.COMPLETED }
         finished.forEach { entry ->
+            entry.torrentHash?.let { torrents.remove(it) }
             entries.remove(entry.id)
             entry.dir.deleteRecursively()
         }
@@ -446,6 +447,10 @@ class DownloadEngine private constructor(context: Context) {
             entry.state = JobState.PAUSED
             entry.speed = 0L
             entry.error = "Paused: waiting for Wi-Fi"
+            // libtorrent transfers on its own, so the gate has to pause the
+            // handle: cancelling the poller only stops our view of it, and
+            // the torrent would keep using mobile data.
+            entry.torrentHash?.let { torrents.pause(it) }
             entry.run?.cancel()
             entry.run = null
             persist(entry)
@@ -514,16 +519,35 @@ class DownloadEngine private constructor(context: Context) {
             val limitKb = ((if (entry.limit > 0L) entry.limit else speedLimit) / 1024L).toInt()
             client.setDownloadLimit(limitKb)
 
-            val added = withContext(Dispatchers.IO) { client.add(source, entry.dir) }
-            entry.torrentHash = added.hash
-            entry.fileName = added.name
-            if (added.total > 0L) entry.total = added.total
+            // A paused row still owns a live, paused handle in the session.
+            // Resuming that handle is the fix for "pause then resume does
+            // nothing": re-adding would find the same paused handle and the
+            // poller would sit there reporting zero traffic forever.
+            val known = entry.torrentHash
+            val resumed = known != null &&
+                withContext(Dispatchers.IO) { client.resume(known) }
+            val hash = if (known != null && resumed) {
+                known
+            } else {
+                val added = withContext(Dispatchers.IO) { client.add(source, entry.dir) }
+                entry.torrentHash = added.hash
+                entry.fileName = added.name
+                if (added.total > 0L) entry.total = added.total
+                added.hash
+            }
+            if (entry.state != JobState.RUNNING) {
+                // The row was paused while this start was in flight, and a
+                // resume that landed after pause() must not leave the handle
+                // running with nobody polling it.
+                withContext(Dispatchers.IO) { client.pause(hash) }
+                return
+            }
             entry.error = null
             persist(entry)
             publishStatus()
 
             while (currentCoroutineContext().isActive) {
-                val progress = withContext(Dispatchers.IO) { client.status(added.hash) }
+                val progress = withContext(Dispatchers.IO) { client.status(hash) }
                     ?: throw IOException("Torrent dropped out of the session")
                 entry.downloaded = progress.downloaded
                 if (progress.total > 0L) entry.total = progress.total
@@ -532,7 +556,7 @@ class DownloadEngine private constructor(context: Context) {
                 publishStatus()
 
                 if (progress.finished) {
-                    withContext(Dispatchers.IO) { client.pause(added.hash) }
+                    withContext(Dispatchers.IO) { client.pause(hash) }
                     finishTorrent(entry)
                     return
                 }

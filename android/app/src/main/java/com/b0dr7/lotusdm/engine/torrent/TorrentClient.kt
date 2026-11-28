@@ -64,10 +64,16 @@ class TorrentClient(context: Context) {
             info.infoHashV1()?.toHex() ?: "$name-$total"
         }.getOrNull() ?: "$name-$total"
 
-        if (runCatching { manager.find(info) }.getOrNull() == null) {
+        val existing = handle(info)
+        if (existing == null) {
             runCatching { manager.download(info, saveDir) }.onFailure {
                 throw IOException(it.message ?: "libtorrent refused this torrent")
             }
+        } else {
+            // Already in the session, which means a paused row was restarted:
+            // libtorrent keeps the old handle paused, so it has to be resumed
+            // here or nothing will ever be downloaded again.
+            runCatching { existing.resume() }
         }
 
         synchronized(lock) { infos[hash] = info }
@@ -96,9 +102,15 @@ class TorrentClient(context: Context) {
         handle(info)?.let { runCatching { it.pause() } }
     }
 
-    fun resume(hash: String) {
-        val info = synchronized(lock) { infos[hash] } ?: return
-        handle(info)?.let { runCatching { it.resume() } }
+    /**
+     * Resumes a torrent that is still in the session. Returns false when the
+     * session no longer knows it (a restart or a removal), so the caller can
+     * re-add it from its source instead.
+     */
+    fun resume(hash: String): Boolean {
+        val info = synchronized(lock) { infos[hash] } ?: return false
+        val handle = handle(info) ?: return false
+        return runCatching { handle.resume() }.isSuccess
     }
 
     /** Drops the torrent from the session; files are left for the caller. */
