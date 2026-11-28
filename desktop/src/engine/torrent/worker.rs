@@ -7,16 +7,17 @@
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+
+use librqbit::ManagedTorrent;
 
 use crate::core::queue::DownloadJob;
 use crate::engine::{emit, emit_state, fail, Control, EngineState, Event};
 
-use super::intake;
-use super::session::{self, TorrentHandle};
+use super::{intake, session};
 
-/// How often progress is sampled. Torrent stats are cheap, but this is also
-/// the pause/cancel reaction time.
+/// How often progress is sampled. Torrent stats are cheap to read, and this is
+/// also the pause/cancel reaction time.
 const TICK: Duration = Duration::from_millis(500);
 const PAUSE_POLL: Duration = Duration::from_millis(100);
 
@@ -36,42 +37,28 @@ pub fn run(job: DownloadJob, control: Arc<Control>, tx: Sender<Event>) {
     }
 
     if let Err(err) = std::fs::create_dir_all(&job.folder) {
-        fail(
-            &tx,
-            &job.id,
-            format!("cannot create {}: {err}", job.folder),
-        );
+        fail(&tx, &job.id, format!("cannot create {}: {err}", job.folder));
         return;
     }
 
     emit_state(&tx, &job.id, EngineState::Running);
-    let handle = match session::add(&source, &job.folder, false) {
-        Ok(handle) => handle,
+    let torrent = match session::add(&source, &job.folder) {
+        Ok(torrent) => torrent,
         Err(err) => {
             fail(&tx, &job.id, err);
             return;
         }
     };
 
-    eprintln!(
-        "lotusdm: torrent \"{}\" added to {}",
-        handle.name(),
-        job.folder
-    );
-
-    let mut speed = SpeedMeter::default();
     loop {
         if control.cancelled() {
-            // The queue may still retry this job, so keep what was written.
-            let _ = session::remove(&handle, false);
-            emit_state(&tx, &job.id, EngineState::Queued);
+            requeue(&tx, &job, &torrent);
             return;
         }
 
         if control.paused() {
-            if let Err(err) = session::set_paused(&handle, true) {
-                fail(&tx, &job.id, err);
-                let _ = session::remove(&handle, false);
+            if let Err(err) = session::pause(&torrent) {
+                abort(&tx, &job, &torrent, err);
                 return;
             }
             emit_state(&tx, &job.id, EngineState::Paused);
@@ -79,98 +66,62 @@ pub fn run(job: DownloadJob, control: Arc<Control>, tx: Sender<Event>) {
                 thread::sleep(PAUSE_POLL);
             }
             if control.cancelled() {
-                let _ = session::remove(&handle, false);
-                emit_state(&tx, &job.id, EngineState::Queued);
+                requeue(&tx, &job, &torrent);
                 return;
             }
-            if let Err(err) = session::set_paused(&handle, false) {
-                fail(&tx, &job.id, err);
-                let _ = session::remove(&handle, false);
+            if let Err(err) = session::resume(&torrent) {
+                abort(&tx, &job, &torrent, err);
                 return;
             }
-            speed.reset();
             emit_state(&tx, &job.id, EngineState::Running);
             continue;
         }
 
-        match tick(&job, &handle, &tx, &mut speed) {
-            Ok(true) => return,
-            Ok(false) => {}
-            Err(err) => {
-                fail(&tx, &job.id, err);
-                let _ = session::remove(&handle, false);
-                return;
-            }
+        let stats = torrent.stats();
+        if let Some(err) = &stats.error {
+            abort(&tx, &job, &torrent, format!("torrent failed: {err}"));
+            return;
+        }
+
+        emit(
+            &tx,
+            Event::Progress {
+                id: job.id.clone(),
+                received: stats.progress_bytes,
+                total: stats.total_bytes,
+                speed_bps: stats
+                    .live
+                    .as_ref()
+                    .map_or(0, |live| live.download_speed.as_bytes()),
+            },
+        );
+
+        if stats.finished {
+            // Seeding is not part of the queue lifecycle and the files stay on
+            // disk, so let the session stop talking to peers.
+            emit_state(&tx, &job.id, EngineState::Done);
+            let _ = session::forget(&torrent);
+            return;
         }
 
         thread::sleep(TICK);
     }
 }
 
-/// One progress sample. `Ok(true)` means the torrent completed and the stop
-/// was already reported; `Err` means the torrent failed for good.
-fn tick(
-    job: &DownloadJob,
-    handle: &TorrentHandle,
+/// Hand the job back to the queue, keeping what was already downloaded so a
+/// retry can resume it.
+fn requeue(tx: &Sender<Event>, job: &DownloadJob, torrent: &Arc<ManagedTorrent>) {
+    let _ = session::forget(torrent);
+    emit_state(tx, &job.id, EngineState::Queued);
+}
+
+/// Report a fatal error and drop the torrent from the session.
+fn abort(
     tx: &Sender<Event>,
-    speed: &mut SpeedMeter,
-) -> Result<bool, String> {
-    let stats = handle.stats();
-
-    if let Some(err) = stats.error {
-        return Err(format!("torrent failed: {err}"));
-    }
-
-    emit(
-        tx,
-        Event::Progress {
-            id: job.id.clone(),
-            received: stats.progress_bytes,
-            total: stats.total_bytes,
-            speed_bps: speed.sample(stats.progress_bytes),
-        },
-    );
-
-    if !stats.finished {
-        return Ok(false);
-    }
-
-    emit_state(tx, &job.id, EngineState::Done);
-    // Seeding is not part of the queue lifecycle and the files stay on disk,
-    // so forget the torrent and let the session stop talking to peers.
-    let _ = session::remove(handle, false);
-    Ok(true)
-}
-
-/// Byte counter to bytes-per-second, sampled at most once per interval.
-#[derive(Default)]
-struct SpeedMeter {
-    last_bytes: u64,
-    last_at: Option<Instant>,
-    bps: u64,
-}
-
-impl SpeedMeter {
-    fn reset(&mut self) {
-        self.last_bytes = 0;
-        self.last_at = None;
-        self.bps = 0;
-    }
-
-    fn sample(&mut self, bytes: u64) -> u64 {
-        let now = Instant::now();
-        if let Some(last_at) = self.last_at {
-            let elapsed = now.duration_since(last_at).as_secs_f64();
-            if elapsed >= 0.5 {
-                let delta = bytes.saturating_sub(self.last_bytes);
-                self.bps = (delta as f64 / elapsed) as u64;
-                self.last_bytes = bytes;
-                self.last_at = Some(now);
-            }
-        } else {
-            self.last_bytes = bytes;
-            self.last_at = Some(now);
-        }
-        self.bps
-    }
+    job: &DownloadJob,
+    torrent: &Arc<ManagedTorrent>,
+    err: String,
+) {
+    fail(tx, &job.id, err);
+    let _ = session::forget(torrent);
 }
