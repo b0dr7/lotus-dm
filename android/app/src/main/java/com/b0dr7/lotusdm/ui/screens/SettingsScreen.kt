@@ -54,6 +54,7 @@ fun SettingsScreen(
     var wifiOnly by remember { mutableStateOf(store.wifiOnly) }
     var notifyResults by remember { mutableStateOf(store.notifyResults) }
     var concurrent by remember { mutableIntStateOf(store.maxConcurrent) }
+    var launchAtStartup by remember { mutableStateOf(store.launchAtStartup) }
 
     Page(window) { pageModifier ->
     Column(
@@ -157,6 +158,17 @@ fun SettingsScreen(
             onCheckedChange = {
                 notifyResults = it
                 store.notifyResults = it
+                onSettingsChanged()
+            },
+        )
+        Spacer(Modifier.height(8.dp))
+        ToggleRow(
+            title = "Launch at startup",
+            detail = "Pick the saved queue back up after the phone reboots.",
+            checked = launchAtStartup,
+            onCheckedChange = {
+                launchAtStartup = it
+                store.launchAtStartup = it
                 onSettingsChanged()
             },
         )
