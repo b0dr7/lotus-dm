@@ -713,7 +713,7 @@ impl eframe::App for LotusApp {
                         .size(12.5),
                 );
                 ui.add_space(16.0);
-                queue_view::stats_row(ui, &self.queue, &p);
+                queue_view::stats_row(ui, &self.queue, self.settings.language, &p);
                 ui.add_space(18.0);
                 queue_view::summary_line(ui, &self.queue, &p);
                 ui.add_space(10.0);
@@ -724,6 +724,7 @@ impl eframe::App for LotusApp {
                     &self.selected,
                     &mut self.controls,
                     &self.event_tx,
+                    self.settings.language,
                     &p,
                 );
                 if let Some(id) = picked {
@@ -734,7 +735,7 @@ impl eframe::App for LotusApp {
                 ui.add_space(16.0);
                 ui.heading("Queue");
                 ui.add_space(12.0);
-                if queue_view::filters_row(ui, &self.queue, &mut self.filter, &p) {
+                if queue_view::filters_row(ui, &self.queue, &mut self.filter, self.settings.language, &p) {
                     self.queue.retain(|job| job.status != JobStatus::Done);
                     if let Err(err) = queue::save(&self.queue) {
                         eprintln!("lotusdm: queue save failed: {err}");
@@ -748,6 +749,7 @@ impl eframe::App for LotusApp {
                     &self.selected,
                     &mut self.controls,
                     &self.event_tx,
+                    self.settings.language,
                     &p,
                 );
                 if let Some(id) = picked {

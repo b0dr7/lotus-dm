@@ -7,8 +7,10 @@ use eframe::egui::{
 };
 
 use crate::core::queue::{DownloadJob, JobStatus};
+use crate::core::settings::Lang;
 use crate::engine::{Control, Event};
 use crate::ui::format;
+use crate::ui::i18n::{self, Key};
 use crate::ui::row_view::row;
 use crate::ui::theme::Palette;
 
@@ -21,12 +23,12 @@ pub enum Filter {
 }
 
 impl Filter {
-    pub fn label(self) -> &'static str {
+    pub fn label(self, lang: Lang) -> &'static str {
         match self {
-            Filter::All => "All",
-            Filter::Active => "Active",
-            Filter::Done => "Done",
-            Filter::Failed => "Failed",
+            Filter::All => i18n::tr(lang, Key::FilterAll),
+            Filter::Active => i18n::tr(lang, Key::FilterActive),
+            Filter::Done => i18n::tr(lang, Key::FilterDone),
+            Filter::Failed => i18n::tr(lang, Key::FilterFailed),
         }
     }
 
@@ -97,12 +99,13 @@ pub fn filters_row(
     ui: &mut egui::Ui,
     queue: &[DownloadJob],
     filter: &mut Filter,
+    lang: Lang,
     p: &Palette,
 ) -> bool {
     let mut clear = false;
     ui.horizontal(|ui| {
         for f in [Filter::All, Filter::Active, Filter::Done, Filter::Failed] {
-            if pill(ui, f.label(), count(queue, f), *filter == f, p) {
+            if pill(ui, f.label(lang), count(queue, f), *filter == f, p) {
                 *filter = f;
             }
             ui.add_space(4.0);
@@ -112,7 +115,7 @@ pub fn filters_row(
             if ui
                 .add_enabled(
                     any_done,
-                    egui::Button::new(RichText::new("Clear completed").color(p.muted)),
+                    egui::Button::new(RichText::new(i18n::tr(lang, Key::ClearCompleted)).color(p.muted)),
                 )
                 .clicked()
             {
@@ -201,7 +204,7 @@ pub fn stat_card(ui: &mut egui::Ui, value: String, label: &str, p: &Palette) {
     );
 }
 
-pub fn stats_row(ui: &mut egui::Ui, queue: &[DownloadJob], p: &Palette) {
+pub fn stats_row(ui: &mut egui::Ui, queue: &[DownloadJob], lang: Lang, p: &Palette) {
     let active = queue
         .iter()
         .filter(|j| matches!(j.status, JobStatus::Running | JobStatus::Paused))
@@ -213,32 +216,30 @@ pub fn stats_row(ui: &mut egui::Ui, queue: &[DownloadJob], p: &Palette) {
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = gap;
         ui.allocate_ui(Vec2::new(col, 64.0), |ui| {
-            stat_card(ui, active.to_string(), "Active", p)
+            stat_card(ui, active.to_string(), i18n::tr(lang, Key::StatActive), p)
         });
         ui.allocate_ui(Vec2::new(col, 64.0), |ui| {
-            stat_card(ui, done.to_string(), "Completed", p)
+            stat_card(ui, done.to_string(), i18n::tr(lang, Key::StatCompleted), p)
         });
         ui.allocate_ui(Vec2::new(col, 64.0), |ui| {
-            stat_card(ui, failed.to_string(), "Failed", p)
+            stat_card(ui, failed.to_string(), i18n::tr(lang, Key::StatFailed), p)
         });
     });
 }
 
-pub fn empty_state(ui: &mut egui::Ui, p: &Palette) {
+pub fn empty_state(ui: &mut egui::Ui, lang: Lang, p: &Palette) {
     ui.add_space(56.0);
     ui.vertical_centered(|ui| {
         ui.label(
-            RichText::new("Nothing in the queue")
+            RichText::new(i18n::tr(lang, Key::NothingInQueue))
                 .color(p.text)
                 .size(16.0),
         );
         ui.add_space(4.0);
         ui.label(
-            RichText::new(
-                "Paste a link in the bar above and press Add - the download starts right away.",
-            )
-            .color(p.muted)
-            .size(12.5),
+            RichText::new(i18n::tr(lang, Key::PasteLinkHint))
+                .color(p.muted)
+                .size(12.5),
         );
     });
 }
@@ -250,6 +251,7 @@ pub fn list_panel(
     selected: &Option<String>,
     controls: &mut HashMap<String, Arc<Control>>,
     tx: &Sender<Event>,
+    lang: Lang,
     p: &Palette,
 ) -> Option<String> {
     let error_color = ui.style().visuals.error_fg_color;
@@ -271,7 +273,7 @@ pub fn list_panel(
             }
         });
     if shown == 0 {
-        empty_state(ui, p);
+        empty_state(ui, lang, p);
     }
     clicked
 }
