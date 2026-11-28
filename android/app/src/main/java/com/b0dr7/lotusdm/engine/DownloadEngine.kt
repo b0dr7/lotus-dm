@@ -46,13 +46,13 @@ private const val DEFAULT_VIDEO_QUALITY = "720p"
 
 fun isMediaUrl(url: String): Boolean {
     val lower = url.trim().lowercase()
-    return lower.startsWith("https:
-        lower.startsWith("https:
-        lower.startsWith("https:
-        lower.startsWith("https:
-        lower.startsWith("https:
-        lower.startsWith("https:
-        lower.startsWith("https:
+    return lower.startsWith("https://www.youtube.com/") ||
+        lower.startsWith("https://youtube.com/") ||
+        lower.startsWith("https://m.youtube.com/") ||
+        lower.startsWith("https://music.youtube.com/") ||
+        lower.startsWith("https://youtube-nocookie.com/") ||
+        lower.startsWith("https://youtu.be/") ||
+        lower.startsWith("https://vimeo.com/")
 }
 
 fun isAudioQuality(quality: String?): Boolean = quality != null && quality in AUDIO_FORMATS
@@ -206,9 +206,7 @@ class DownloadEngine private constructor(context: Context) {
         if (clean.isEmpty()) return null
         val wanted = sanitizeName(name)
         if (clean.startsWith("magnet:")) return enqueueTorrent(clean, wanted ?: magnetName(clean))
-        if (!clean.startsWith("http:
-
-        val created = System.currentTimeMillis()
+        if (!clean.startsWith("http://") && !clean.startsWith("https://")) return null
         val id = "$created-${(1000..9999).random()}"
         val dir = File(partsRoot(), id)
         dir.mkdirs()

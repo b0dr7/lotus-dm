@@ -138,7 +138,7 @@ mod tests {
 
     fn job(status: JobStatus) -> DownloadJob {
         let mut job = DownloadJob::new_queued(
-            "https:
+            "https://example.com/a.bin".to_string(),
             "a.bin".to_string(),
             "C:/Downloads".to_string(),
         );

@@ -145,7 +145,7 @@ impl ClipboardWatch {
 fn first_url(text: &str) -> Option<String> {
     for line in text.lines() {
         let line = line.trim();
-        if line.starts_with("http:
+        if line.starts_with("http://") || line.starts_with("https://") {
             return Some(line.to_string());
         }
     }

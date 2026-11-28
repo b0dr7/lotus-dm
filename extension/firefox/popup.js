@@ -33,8 +33,7 @@ async function readPort() {
 
 async function ping(port) {
   try {
-    const response = await fetch("http:
-    const data = await response.json();
+    const response = await fetch("http://127.0.0.1:" + port + "/ping", { cache: "no-store" });
     return data && data.ok === true;
   } catch (err) {
     return false;

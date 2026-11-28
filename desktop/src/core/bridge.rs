@@ -133,10 +133,8 @@ fn queue_one(
 ) -> bool {
     let url = url.trim().to_string();
     let lower = url.to_ascii_lowercase();
-    let ok = (url.starts_with("http:
-        || url.starts_with("https:
-        || lower.starts_with("ftp:
-        || lower.starts_with("magnet:?"))
+    let ok = (url.starts_with("http://") || url.starts_with("https://")
+        || lower.starts_with("ftp://") || lower.starts_with("magnet:?"))
         && url.len() <= 8192;
     if !ok {
         respond(

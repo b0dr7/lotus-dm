@@ -379,8 +379,7 @@ private fun youtubeVideoId(url: String): String? {
 
 private fun youtubeThumbnailUrl(url: String): String? {
     val id = youtubeVideoId(url) ?: return null
-    return "https:
-}
+    return "https://img.youtube.com/vi/$id/hqdefault.jpg"
 
 private fun extractLink(intent: Intent?): String? {
     if (intent == null) return null
@@ -391,15 +390,14 @@ private fun extractLink(intent: Intent?): String? {
             val text = intent.getStringExtra(Intent.EXTRA_TEXT)
                 ?: intent.getStringExtra(Intent.EXTRA_SUBJECT)
                 ?: return null
-            val match = Regex("https?:
-            match.value.trimEnd('.', ',', ')', ']', '}', '"', '\'', '>')
+            val match = Regex("https?://\\S+|magnet:\\?\\S+").find(text) ?: return null
         }
         else -> null
     }
 }
 
 private fun isDownloadable(value: String): Boolean =
-    value.startsWith("http:
+    value.startsWith("http://") || value.startsWith("https://") || value.startsWith("magnet:")
 
 private fun copyTorrent(context: Context, uri: Uri): File? = runCatching {
     val target = File(context.cacheDir, "picked-${System.currentTimeMillis()}.torrent")

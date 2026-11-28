@@ -20,7 +20,7 @@ pub fn parse(raw: &str) -> Option<TorrentSource> {
         return Some(TorrentSource::Link(text.to_string()));
     }
 
-    let is_http = lower.starts_with("http:
+    let is_http = lower.starts_with("http://") || lower.starts_with("https://");
     let url_path = text.split(['?', '#']).next().unwrap_or(text);
     if is_http && has_torrent_extension(url_path) {
         return Some(TorrentSource::Link(text.to_string()));
@@ -60,8 +60,8 @@ mod tests {
     fn accepts_magnets_and_torrent_links() {
         for url in [
             "  magnet:?xt=urn:btih:0123456789abcdef&dn=thing  ",
-            "https:
-            "https:
+            "https://example.com/a.torrent",
+            "https://example.com/a.torrent?x=1#frag",
         ] {
             assert!(matches!(parse(url), Some(TorrentSource::Link(_))), "{url}");
         }
@@ -72,9 +72,9 @@ mod tests {
         for url in [
             "",
             "magnet:?dn=no-infohash",
-            "https:
-            "https:
-            "ftp:
+            "https://example.com/file.zip",
+            "https://example.com/",
+            "ftp://example.com/a.torrent",
             "C:/definitely/not/here.torrent",
         ] {
             assert!(parse(url).is_none(), "{url}");

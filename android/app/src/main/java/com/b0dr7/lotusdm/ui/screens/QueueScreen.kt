@@ -237,8 +237,7 @@ fun QueueScreen() {
                 },
                 modifier = Modifier.weight(1f),
                 singleLine = true,
-                placeholder = { Text("https:
-                shape = RoundedCornerShape(12.dp),
+                placeholder = { Text("https://… or magnet:?xt=…", fontSize = 13.sp) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
             )
             Spacer(Modifier.width(8.dp))
@@ -319,7 +318,7 @@ fun QueueScreen() {
                     val lines = batchText.split('\n')
                         .map { it.trim() }
                         .filter {
-                            it.startsWith("http:
+                            it.startsWith("http://") || it.startsWith("https://") ||
                                 it.startsWith("magnet:")
                         }
                     lines.forEach { engine.add(it) }

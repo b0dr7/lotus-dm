@@ -337,8 +337,7 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
         ui.label(RichText::new("port - takes effect after restart").color(p.muted));
     });
     let state = match (cfg.bridge_enabled, bridge_port) {
-        (true, Some(port)) => format!("Listening on http:
-        (true, None) => "Not listening - the port is busy. Change it and restart.".to_string(),
+        (true, Some(port)) => format!("Listening on http://127.0.0.1:{port}"),
         (false, _) => "Off - the browser extension cannot reach this app.".to_string(),
     };
     ui.label(RichText::new(state).color(p.muted));

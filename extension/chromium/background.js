@@ -14,8 +14,7 @@ async function bridgePort() {
 
 async function sendToLotus(url, filename) {
   const port = await bridgePort();
-  const response = await fetch("http:
-    method: "POST",
+  const response = await fetch("http://127.0.0.1:" + port + "/add", {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ url: url, filename: filename || null })
   });

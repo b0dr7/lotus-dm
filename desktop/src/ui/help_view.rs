@@ -36,10 +36,8 @@ pub fn help_panel(ui: &mut egui::Ui, p: &Palette) {
     ui.add_space(16.0);
 
     ui.heading("If the badge says \"app not running\"");
-    ui.label("With Lotus Download Manager open, visit http:
-    ui.label("- No answer: the app is closed, or its bridge is switched off in Settings - Browser bridge.");
+    ui.label("With Lotus Download Manager open, visit http://127.0.0.1:8460/ping in the same browser. You should see {\"ok\":true,...}.");
     ui.label("- Something else answers, or the port is busy: change the port in that same settings block, restart the app, then type the new port into the extension popup and press Save.");
     ui.add_space(16.0);
 
-    ui.label(RichText::new("The extension asks for one host permission, http:
-}
+    ui.label(RichText::new("The extension asks for one host permission, http://127.0.0.1/*, and nothing else. It reads the tab you send and the link you right-click. No analytics, no remote code.").color(p.muted).size(12.0));
