@@ -115,9 +115,8 @@ pub fn derive_filename(url: &str) -> String {
 }
 
 pub fn host_of(url: &str) -> String {
-    let after_scheme = url.split_once(":
+    let after_scheme = url.split_once("://").map(|(_, rest)| rest).unwrap_or(url);
     let authority = after_scheme.split(['/', '?', '#']).next().unwrap_or("");
-    let host_port = authority.rsplit('@').next().unwrap_or(authority);
     let host = if host_port.starts_with('[') {
         host_port.split(']').next().unwrap_or(host_port)
     } else {
