@@ -9,7 +9,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use librqbit::ManagedTorrent;
+use super::rqbitapi::ManagedTorrent;
 
 use crate::core::queue::DownloadJob;
 use crate::engine::{emit, emit_state, fail, Control, EngineState, Event};
