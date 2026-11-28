@@ -22,6 +22,7 @@
 
   /* resolved data-theme -> menu state */
   function parse(t) {
+    if (t === "auto") return { base: "system", amoled: false, hc: false };
     if (t === "hc") return { base: "dark", amoled: false, hc: true };
     if (t === "hc-light") return { base: "light", amoled: false, hc: true };
     if (t === "amoled") return { base: "dark", amoled: true, hc: false };
@@ -29,20 +30,35 @@
     return { base: "dark", amoled: false, hc: false };
   }
 
+  /* "system" follows the OS, every other base is an explicit pick */
+  function baseOf(s) {
+    return s.base === "system" ? systemTheme() : s.base;
+  }
+
   /* menu state -> resolved data-theme; HC follows the base mode */
   function resolve(s) {
-    if (s.hc) return s.base === "light" ? "hc-light" : "hc";
-    if (s.base === "dark") return s.amoled ? "amoled" : "dark";
+    var base = baseOf(s);
+    if (s.hc) return base === "light" ? "hc-light" : "hc";
+    if (base === "dark") return s.amoled ? "amoled" : "dark";
     return "light";
+  }
+
+  /* menu state -> what gets stored; "auto" keeps following the OS */
+  function intent(s) {
+    if (s.base === "system" && !s.hc && !s.amoled) return "auto";
+    return resolve(s);
   }
 
   function label(s) {
     if (s.hc) return "High contrast";
+    if (s.base === "system") return "System";
     if (s.base === "light") return "Light";
     return s.amoled ? "Amoled" : "Dark";
   }
 
   var state = parse(document.documentElement.getAttribute("data-theme") || "dark");
+  var pinned = saved();
+  if (!pinned || pinned === "auto") state.base = "system";
   var trigger, menu, lab, modeBtns, amoledIn, hcIn;
 
   function sync() {
@@ -52,7 +68,7 @@
       modeBtns[i].classList.toggle("on", on);
       modeBtns[i].setAttribute("aria-pressed", on ? "true" : "false");
     }
-    var dark = state.base === "dark";
+    var dark = baseOf(state) === "dark";
     amoledIn.parentNode.hidden = !dark;
     amoledIn.checked = state.amoled;
     hcIn.checked = state.hc;
@@ -62,7 +78,7 @@
     document.documentElement.setAttribute("data-theme", resolve(state));
     if (persist) {
       try {
-        localStorage.setItem(KEY, resolve(state));
+        localStorage.setItem(KEY, intent(state));
       } catch (e) {}
     }
     sync();
@@ -102,8 +118,9 @@
 
     var seg = el("div", "theme-seg");
     modeBtns = [];
-    ["dark", "light"].forEach(function (m) {
-      var b = el("button", "mode-btn", m === "dark" ? "Dark" : "Light");
+    [["system", "System"], ["dark", "Dark"], ["light", "Light"]].forEach(function (pair) {
+      var m = pair[0];
+      var b = el("button", "mode-btn", pair[1]);
       b.type = "button";
       b.setAttribute("data-mode", m);
       b.addEventListener("click", function () {
@@ -123,6 +140,7 @@
     amoledLbl.appendChild(el("span", "opt-txt", "Amoled"));
     amoledLbl.appendChild(el("span", "sw"));
     amoledIn.addEventListener("change", function () {
+      if (state.base === "system") state.base = baseOf(state);
       if (state.base !== "dark") { amoledIn.checked = false; return; }
       state.amoled = amoledIn.checked;
       if (amoledIn.checked) state.hc = false;
@@ -161,8 +179,9 @@
   if (window.matchMedia) {
     var mq = window.matchMedia("(prefers-color-scheme: light)");
     var onChange = function () {
-      if (!saved()) {
-        state = parse(systemTheme());
+      var pinned = saved();
+      if (!pinned || pinned === "auto") {
+        state.base = "system";
         apply(false);
       }
     };

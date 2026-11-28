@@ -1,3 +1,48 @@
+/* Split download buttons: hover opens the variant menu on desktop, the
+   expand arrow opens it by click/tap (touch has no hover), and only one
+   menu is open at a time. Then the platform pass: on Android the hero
+   button is repointed at the universal .apk before any click. */
+(function () {
+  var splits = document.querySelectorAll(".split");
+
+  function closeAll(except) {
+    for (var i = 0; i < splits.length; i++) {
+      if (splits[i] === except) continue;
+      splits[i].classList.remove("open");
+      var t = splits[i].querySelector(".split-toggle");
+      if (t) t.setAttribute("aria-expanded", "false");
+    }
+  }
+
+  for (var i = 0; i < splits.length; i++) {
+    (function (split) {
+      var toggle = split.querySelector(".split-toggle");
+      if (!toggle) return;
+      toggle.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var open = split.classList.toggle("open");
+        toggle.setAttribute("aria-expanded", open ? "true" : "false");
+        if (open) {
+          closeAll(split);
+        } else {
+          /* release focus so :focus-within does not hold the menu open */
+          toggle.blur();
+        }
+      });
+      split.addEventListener("focusout", function () {
+        if (split.contains(document.activeElement)) return;
+        split.classList.remove("open");
+        toggle.setAttribute("aria-expanded", "false");
+      });
+    })(splits[i]);
+  }
+
+  document.addEventListener("click", function () { closeAll(null); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") closeAll(null);
+  });
+})();
+
 (function () {
   var ua = navigator.userAgent || "";
 
