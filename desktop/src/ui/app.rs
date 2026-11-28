@@ -43,6 +43,8 @@ pub struct LotusApp {
     _tray: Option<Tray>,
     quitting: bool,
     hidden: bool,
+    /// True once the window has been parked off-screen for the tray.
+    parked: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -104,6 +106,7 @@ impl LotusApp {
             _tray: tray,
             quitting: false,
             hidden,
+            parked: false,
         }
     }
 
@@ -194,9 +197,12 @@ impl LotusApp {
     fn handle_tray(&mut self, action: TrayAction, ctx: &egui::Context) {
         match action {
             TrayAction::Open => {
+                sys::show_main_window();
                 self.hidden = false;
-                sys::set_main_window_visible(true);
-                ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
+                self.parked = false;
+                // The next frame has to be a real one, not whatever was on
+                // screen when the window was parked.
+                ctx.request_repaint();
                 ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
             }
             TrayAction::PauseAll => {
@@ -437,12 +443,19 @@ impl eframe::App for LotusApp {
             && !self.quitting
         {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
-            sys::set_main_window_visible(false);
+            sys::hide_main_window();
             self.hidden = true;
+            self.parked = true;
         }
         if self.hidden {
-            // A hidden window is still ticked so progress and finish
-            // notifications keep flowing.
+            // Parking leaves the window visible to Windows, so redraws keep
+            // coming and this tick keeps draining engine events: progress,
+            // autostart, retries and the finish/fail notifications. Hiding it
+            // for real would freeze all of that (see core::sys).
+            if !self.parked {
+                sys::hide_main_window();
+                self.parked = true;
+            }
             ctx.request_repaint_after(std::time::Duration::from_millis(500));
         }
 
