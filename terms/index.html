@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>(function(){var t=null;try{t=localStorage.getItem("lotus-theme-dm")}catch(e){}
-if(t!=="dark"&&t!=="light"&&t!=="amoled"&&t!=="hc"&&t!=="hc-light"){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches)?"light":"dark"}
+if(t!=="dark"&&t!=="light"&&t!=="amoled"&&t!=="hc"){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches)?"light":"dark"}
 document.documentElement.setAttribute("data-theme",t)})();</script>
 <title>Terms of Service - Lotus Download Manager</title>
 <link rel="icon" href="../assets/lotus.svg" type="image/svg+xml">
@@ -12,16 +12,18 @@ document.documentElement.setAttribute("data-theme",t)})();</script>
 </head>
 <body>
 <header class="site-header">
-  <span class="mark" aria-label="Lotus Download Manager" draggable="false">
-    <span class="mark-ico" aria-hidden="true"></span>
-    <span class="mark-txt">Lotus</span>
-  </span>
-  <div class="theme-picker" id="theme-picker" aria-label="Color theme"></div>
+  <a class="brand" href="../"><span class="logo" aria-hidden="true"></span><span>Lotus Download Manager</span></a>
+  <nav class="nav" aria-label="Main">
+    <a href="../">Home</a>
+    <a href="./" aria-current="page">Terms</a>
+    <a href="../privacy/">Privacy</a>
+  </nav>
+  <div class="theme-picker" id="theme-picker" role="group" aria-label="Color theme"></div>
 </header>
 
-<main class="legal">
+<main class="wrap legal">
   <h1>Terms of Service - Lotus Download Manager</h1>
-  <p>Last updated: November 27, 2026. Installing or using Lotus Download Manager ("the Software") means you accept these terms. If you disagree, do not use it.</p>
+  <p>Last updated: &lt;date&gt;. Installing or using Lotus Download Manager ("the Software") means you accept these terms. If you disagree, do not use it.</p>
   <ol>
     <li><strong>AS-IS.</strong> The Software is provided free of charge, "as is" and "as available", without warranty of any kind, express or implied - including merchantability, fitness for a particular purpose, and non-infringement. The entire risk of use remains with you.</li>
     <li><strong>YOUR RESPONSIBILITY.</strong> You are solely responsible for what you download and for complying with all applicable laws and the terms of any website or service you use the Software with. The Software is a neutral tool; it does not encourage or enable any particular use.</li>
@@ -34,11 +36,7 @@ document.documentElement.setAttribute("data-theme",t)})();</script>
 </main>
 
 <footer class="site-footer">
-  <a href="../">Lotus Download Manager</a>
-  <span class="sep" aria-hidden="true">|</span>
-  <a href="./" aria-current="page">Terms</a>
-  <span class="sep" aria-hidden="true">|</span>
-  <a href="../privacy/">Privacy</a>
+  <a href="./">Terms</a> | <a href="../privacy/">Privacy</a>
 </footer>
 <script src="../theme.js"></script>
 </body>
