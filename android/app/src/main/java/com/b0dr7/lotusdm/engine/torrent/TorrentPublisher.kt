@@ -80,26 +80,20 @@ object TorrentPublisher {
         return complete
     }
 
-    // API 23-28: real files, so the directory can simply be moved aside.
+    // API 23-28: real files, so the directory can simply be moved aside. If the
+    // public Downloads folder refuses the write, keep the tree where the app
+    // is allowed to write instead of dropping it.
 
     private fun moveLegacy(context: Context, source: File, safe: String): Boolean {
         val downloads = Environment.getExternalStoragePublicDirectory(
             Environment.DIRECTORY_DOWNLOADS,
         )
-        val folder = File(downloads, FOLDER)
-        if (folder.exists() || folder.mkdirs()) {
-            val target = File(folder, safe)
-            if (!target.exists()) {
-                if (source.renameTo(target)) return true
-                if (copyTree(source, target)) return true
-            }
-        }
-        return movePrivate(context, source, safe)
+        if (moveTo(File(downloads, FOLDER), source, safe)) return true
+        val base = context.getExternalFilesDir(null) ?: context.filesDir
+        return moveTo(File(base, FOLDER), source, safe)
     }
 
-    private fun movePrivate(context: Context, source: File, safe: String): Boolean {
-        val base = context.getExternalFilesDir(null) ?: context.filesDir
-        val folder = File(base, FOLDER)
+    private fun moveTo(folder: File, source: File, safe: String): Boolean {
         if (!folder.exists() && !folder.mkdirs()) return false
         val target = File(folder, safe)
         if (target.exists()) return false
