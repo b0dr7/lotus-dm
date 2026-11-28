@@ -118,6 +118,16 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
     if r.changed() {
         persist(cfg);
     }
+    ui.add_space(8.0);
+    ui.label(RichText::new("Max simultaneous downloads").color(p.text));
+    ui.label(
+        RichText::new("How many run at once; the rest wait in the queue. 0 = no limit. Default 3.")
+            .color(p.muted),
+    );
+    let r = ui.add(egui::DragValue::new(&mut cfg.max_concurrent_downloads).range(0..=32));
+    if r.changed() {
+        persist(cfg);
+    }
     ui.add_space(12.0);
 
     ui.label(RichText::new("Torrents").color(p.text));
