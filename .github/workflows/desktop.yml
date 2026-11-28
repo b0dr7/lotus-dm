@@ -59,6 +59,13 @@ jobs:
       - name: Cargo check
         run: cargo check --locked --all-targets
 
+      # The release also builds for 32-bit Windows, where the dependency set
+      # differs (no MSE fork), so the host-only check is not enough.
+      - name: Cargo check (32-bit)
+        run: |
+          rustup target add i686-pc-windows-msvc
+          cargo check --locked --target i686-pc-windows-msvc
+
       # `cargo check --all-targets` only compiles the #[cfg(test)] modules. This
       # runs them, so the torrent intake, FTP URL and MSE policy tests are
       # actual checks rather than dead code that happens to type-check.

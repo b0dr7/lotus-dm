@@ -105,7 +105,7 @@ fn start(policy: &Policy) -> Result<Arc<Session>, String> {
         opts.dht = None;
     }
     opts.disable_local_service_discovery = !policy.lsd;
-    opts.mse_mode = policy.encryption.into();
+    super::apply_mse(&mut opts, policy.encryption);
 
     runtime()?
         .block_on(Session::new_with_opts(folder, opts))
