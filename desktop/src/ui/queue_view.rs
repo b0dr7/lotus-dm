@@ -8,6 +8,7 @@ use eframe::egui::{
 
 use crate::core::queue::{DownloadJob, JobStatus};
 use crate::engine::{Control, Event};
+use crate::ui::format;
 use crate::ui::row_view::row;
 use crate::ui::theme::Palette;
 
@@ -46,6 +47,14 @@ const PILL_H: f32 = 28.0;
 
 fn count(queue: &[DownloadJob], filter: Filter) -> usize {
     queue.iter().filter(|j| filter.matches(j.status)).count()
+}
+
+fn total_speed(queue: &[DownloadJob]) -> u64 {
+    queue
+        .iter()
+        .filter(|job| job.status == JobStatus::Running)
+        .map(|job| job.speed_bps)
+        .sum()
 }
 
 fn pill(ui: &mut egui::Ui, text: &str, count: usize, selected: bool, p: &Palette) -> bool {
@@ -114,6 +123,65 @@ pub fn filters_row(
     clear
 }
 
+/// "4 downloads" on the left, live totals on the right.
+pub fn summary_line(ui: &mut egui::Ui, queue: &[DownloadJob], p: &Palette) {
+    ui.horizontal(|ui| {
+        let shown = queue.len();
+        let label = if shown == 1 {
+            "1 download".to_string()
+        } else {
+            format!("{shown} downloads")
+        };
+        ui.label(RichText::new(label).size(12.5).color(p.muted));
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            let active = queue
+                .iter()
+                .filter(|job| job.status == JobStatus::Running)
+                .count();
+            let speed = total_speed(queue);
+            let text = if active == 0 {
+                "idle".to_string()
+            } else {
+                format!("{} active  ·  {}", active, format::speed(speed))
+            };
+            ui.label(RichText::new(text).size(12.5).color(p.muted));
+        });
+    });
+}
+
+/// FDM's bottom strip: what the whole queue is doing right now.
+pub fn status_bar(ctx: &egui::Context, queue: &[DownloadJob], limit_kbps: u64, p: &Palette) {
+    egui::TopBottomPanel::bottom("status")
+        .frame(
+            egui::Frame::side_top_panel(&ctx.style())
+                .fill(p.bg)
+                .stroke(Stroke::new(1.0_f32, p.border)),
+        )
+        .show(ctx, |ui| {
+            ui.add_space(7.0);
+            ui.horizontal(|ui| {
+                let active = queue
+                    .iter()
+                    .filter(|job| job.status == JobStatus::Running)
+                    .count();
+                ui.label(
+                    RichText::new(format!("{}  ·  {} active", format::speed(total_speed(queue)), active))
+                        .size(12.0)
+                        .color(p.muted),
+                );
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let limit = if limit_kbps == 0 {
+                        "No speed limit".to_string()
+                    } else {
+                        format!("Limit {} KB/s", limit_kbps)
+                    };
+                    ui.label(RichText::new(limit).size(12.0).color(p.muted));
+                });
+            });
+            ui.add_space(5.0);
+        });
+}
+
 pub fn stat_card(ui: &mut egui::Ui, value: String, label: &str, p: &Palette) {
     let width = ui.available_width();
     let (rect, _) = ui.allocate_exact_size(Vec2::new(width, 64.0), Sense::hover());
@@ -177,25 +245,37 @@ pub fn empty_state(ui: &mut egui::Ui, p: &Palette) {
     });
 }
 
+/// The list itself. Returns the id of the card that was clicked, so the app can
+/// show its details panel.
 pub fn list_panel(
     ui: &mut egui::Ui,
     queue: &mut Vec<DownloadJob>,
     filter: Filter,
+    selected: &Option<String>,
     controls: &mut HashMap<String, Arc<Control>>,
     tx: &Sender<Event>,
     p: &Palette,
-) {
+) -> Option<String> {
     let error_color = ui.style().visuals.error_fg_color;
+    let mut clicked = None;
     let mut shown = 0usize;
-    for job in queue.iter() {
-        if !filter.matches(job.status) {
-            continue;
-        }
-        shown += 1;
-        row(ui, job, p, error_color, controls, tx);
-        ui.add_space(8.0);
-    }
+    egui::ScrollArea::vertical()
+        .auto_shrink([false, false])
+        .show(ui, |ui| {
+            for job in queue.iter() {
+                if !filter.matches(job.status) {
+                    continue;
+                }
+                shown += 1;
+                let is_selected = selected.as_deref() == Some(job.id.as_str());
+                if row(ui, job, p, error_color, is_selected, controls, tx) {
+                    clicked = Some(job.id.clone());
+                }
+                ui.add_space(8.0);
+            }
+        });
     if shown == 0 {
         empty_state(ui, p);
     }
+    clicked
 }

@@ -8,32 +8,44 @@ use eframe::egui::{
 
 use crate::core::queue::{host_of, DownloadJob, JobStatus};
 use crate::engine::{Control, Event};
+use crate::ui::format;
 use crate::ui::lifecycle;
 use crate::ui::theme::Palette;
 
-const ROW_HEIGHT: f32 = 86.0;
-const PAD: f32 = 12.0;
+const ROW_HEIGHT: f32 = 78.0;
+const PAD: f32 = 14.0;
 const BUTTON_H: f32 = 24.0;
 const BUTTON_GAP: f32 = 8.0;
 
+/// One download. Returns true when the card itself was clicked, which is how
+/// the details panel gets its selection.
 pub fn row(
     ui: &mut egui::Ui,
     job: &DownloadJob,
     p: &Palette,
     error_color: Color32,
+    selected: bool,
     controls: &mut HashMap<String, Arc<Control>>,
     tx: &Sender<Event>,
-) {
+) -> bool {
     let width = ui.available_width().max(0.0);
-    let (rect, _response) = ui.allocate_exact_size(Vec2::new(width, ROW_HEIGHT), Sense::hover());
+    let (rect, response) = ui.allocate_exact_size(Vec2::new(width, ROW_HEIGHT), Sense::click());
 
     let painter = ui.painter();
-    painter.rect_filled(rect, CornerRadius::same(12), p.surface);
+    let fill = if selected { p.surface2 } else { p.surface };
+    painter.rect_filled(rect, CornerRadius::same(12), fill);
+    let border = if selected {
+        Stroke::new(1.0_f32, p.accent)
+    } else if response.hovered() {
+        Stroke::new(1.0_f32, p.hover)
+    } else {
+        Stroke::new(1.0_f32, p.border)
+    };
     painter.rect(
         rect,
         CornerRadius::same(12),
         Color32::TRANSPARENT,
-        Stroke::new(1.0_f32, p.border),
+        border,
         StrokeKind::Inside,
     );
 
@@ -57,14 +69,14 @@ pub fn row(
         Pos2::new(chip_rect.left() - PAD, rect.bottom()),
     );
     painter.with_clip_rect(name_clip).text(
-        Pos2::new(left, rect.top() + PAD + 8.0),
+        Pos2::new(left, rect.top() + PAD + 7.0),
         Align2::LEFT_CENTER,
         &job.filename,
         FontId::proportional(14.0),
         p.text,
     );
 
-    let meta_y = rect.top() + PAD + 28.0;
+    let meta_y = rect.top() + PAD + 26.0;
     let row_clip = Rect::from_min_max(Pos2::new(left, rect.top()), Pos2::new(right, rect.bottom()));
     if job.status == JobStatus::Failed {
         if let Some(error) = &job.error {
@@ -77,36 +89,19 @@ pub fn row(
             );
         }
     } else {
-        painter.text(
+        painter.with_clip_rect(row_clip).text(
             Pos2::new(left, meta_y),
             Align2::LEFT_CENTER,
             host_of(&job.url),
             FontId::proportional(12.0),
             p.muted,
         );
-        let right_text = match job.status {
-            JobStatus::Running => {
-                format!(
-                    "{}  ·  {}",
-                    fmt_size(job.received_bytes),
-                    fmt_speed(job.speed_bps)
-                )
-            }
-            JobStatus::Paused | JobStatus::Queued if job.total_bytes > 0 => {
-                format!(
-                    "{}  ·  {}",
-                    fmt_size(job.received_bytes),
-                    fmt_size(job.total_bytes)
-                )
-            }
-            JobStatus::Done => fmt_size(if job.total_bytes > 0 {
-                job.total_bytes
-            } else {
-                job.received_bytes
-            }),
-            _ if job.no_resume => "no-resume".to_string(),
-            _ => "--".to_string(),
-        };
+        let right_text = format::progress_line(
+            job.received_bytes,
+            job.total_bytes,
+            job.speed_bps,
+            job.status == JobStatus::Running,
+        );
         painter.text(
             Pos2::new(right, meta_y),
             Align2::RIGHT_CENTER,
@@ -118,7 +113,38 @@ pub fn row(
 
     let band_y = rect.bottom() - PAD - BUTTON_H;
     let buttons_w = draw_buttons(ui, job, band_y, right, p, controls, tx);
-    draw_progress_bar(ui, job, band_y, left, right, buttons_w, p);
+    let percent_w = draw_percent(ui, job, band_y, right - buttons_w - 10.0, p);
+    draw_progress_bar(
+        ui,
+        job,
+        band_y,
+        left,
+        right - buttons_w - percent_w,
+        p,
+    );
+
+    response.clicked()
+}
+
+/// Right-aligned percentage in front of the buttons; returns the width used.
+fn draw_percent(
+    ui: &mut egui::Ui,
+    job: &DownloadJob,
+    band_y: f32,
+    right: f32,
+    p: &Palette,
+) -> f32 {
+    let text = format::percent_text(job.received_bytes, job.total_bytes);
+    let galley = ui
+        .painter()
+        .layout_no_wrap(text, FontId::proportional(11.5), p.muted);
+    let width = galley.size().x;
+    ui.painter().galley(
+        Pos2::new(right - width, band_y + BUTTON_H / 2.0 - galley.size().y / 2.0),
+        galley,
+        p.muted,
+    );
+    width
 }
 
 fn draw_buttons(
@@ -163,7 +189,7 @@ fn draw_buttons(
         } else if response.hovered() {
             (p.hover_tint, p.hover)
         } else {
-            (p.surface2, p.text)
+            (p.surface, p.text)
         };
         ui.painter().rect_filled(rect, CornerRadius::same(12), fill);
         if !*primary {
@@ -196,15 +222,9 @@ fn draw_progress_bar(
     band_y: f32,
     left: f32,
     right: f32,
-    buttons_w: f32,
     p: &Palette,
 ) {
-    let bar_right = if buttons_w > 0.0 {
-        right - buttons_w - 12.0
-    } else {
-        right
-    };
-    let bar_right = bar_right.max(left + 40.0);
+    let bar_right = right.max(left + 40.0);
     let bar = Rect::from_min_max(
         Pos2::new(left, band_y + 10.0),
         Pos2::new(bar_right, band_y + 16.0),
@@ -243,15 +263,6 @@ fn actions_for(status: JobStatus) -> Vec<(&'static str, bool)> {
     }
 }
 
-fn open_folder(folder: &str) {
-    #[cfg(windows)]
-    let mut command = std::process::Command::new("explorer");
-    #[cfg(not(windows))]
-    let mut command = std::process::Command::new("xdg-open");
-    command.arg(folder);
-    let _ = command.spawn();
-}
-
 fn act(
     job: &DownloadJob,
     label: &str,
@@ -277,7 +288,7 @@ fn act(
                 control.request_cancel();
             }
         }
-        "Open folder" => open_folder(&job.folder),
+        "Open folder" => crate::ui::details::open_folder(&job.folder),
         _ => {}
     }
 }
@@ -292,31 +303,5 @@ fn chip_colors(status: JobStatus, p: &Palette, error_color: Color32) -> (Color32
             error_color,
             Color32::from_rgba_unmultiplied(error_color.r(), error_color.g(), error_color.b(), 45),
         ),
-    }
-}
-
-fn fmt_size(bytes: u64) -> String {
-    const KB: f64 = 1024.0;
-    const MB: f64 = KB * 1024.0;
-    const GB: f64 = MB * 1024.0;
-    let b = bytes as f64;
-    if b < KB {
-        format!("{bytes} B")
-    } else if b < MB {
-        format!("{:.0} KB", b / KB)
-    } else if b < GB {
-        format!("{:.1} MB", b / MB)
-    } else {
-        format!("{:.2} GB", b / GB)
-    }
-}
-
-fn fmt_speed(bps: u64) -> String {
-    if bps < 1024 {
-        format!("{bps} B/s")
-    } else if bps < 1024 * 1024 {
-        format!("{:.1} KB/s", bps as f64 / 1024.0)
-    } else {
-        format!("{:.1} MB/s", bps as f64 / (1024.0 * 1024.0))
     }
 }
