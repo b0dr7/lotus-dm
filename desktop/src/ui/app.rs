@@ -12,6 +12,7 @@ use crate::engine::{self, Control, EngineState, Event};
 use crate::ui::add_dialog::{self, AddDialog};
 use crate::ui::batch_dialog::{self, BatchDialog};
 use crate::ui::clipboard_watch::{ClipboardWatch, PromptAction};
+use crate::ui::details;
 use crate::ui::help_view;
 use crate::ui::lifecycle;
 use crate::ui::queue_view::{self, Filter};
@@ -26,6 +27,8 @@ pub struct LotusApp {
     settings: Settings,
     nav: Nav,
     filter: Filter,
+    /// Row whose details panel is open, by job id.
+    selected: Option<String>,
     url_input: String,
     queue: Vec<DownloadJob>,
     add_dialog: Option<AddDialog>,
@@ -90,6 +93,7 @@ impl LotusApp {
             settings,
             nav: Nav::Home,
             filter: Filter::All,
+            selected: None,
             url_input: String::new(),
             queue,
             add_dialog: None,
@@ -393,6 +397,58 @@ impl LotusApp {
             });
     }
 
+    /// Details panel for the selected row. Panels have to be registered before
+    /// the central area, so its buttons are dispatched from here too.
+    fn details_panel(&mut self, ctx: &egui::Context, p: &Palette) {
+        if !matches!(self.nav, Nav::Home | Nav::Queue) {
+            return;
+        }
+        let Some(id) = self.selected.clone() else {
+            return;
+        };
+        let Some(index) = self.queue.iter().position(|job| job.id == id) else {
+            // The row was cleared while its panel was open.
+            self.selected = None;
+            return;
+        };
+        let outcome = details::show(ctx, &mut self.queue[index], p);
+        if outcome.close {
+            self.selected = None;
+        }
+        if outcome.changed {
+            if let Err(err) = queue::save(&self.queue) {
+                eprintln!("lotusdm: queue save failed: {err}");
+            }
+        }
+        let Some(action) = outcome.action else {
+            return;
+        };
+        let job = self.queue[index].clone();
+        match action {
+            details::Action::Start => {
+                lifecycle::spawn_job(&job, &mut self.controls, &self.event_tx)
+            }
+            details::Action::Pause => {
+                if let Some(control) = self.controls.get(&job.id) {
+                    control.request_pause();
+                }
+            }
+            details::Action::Resume => {
+                if let Some(control) = self.controls.get(&job.id) {
+                    control.request_resume();
+                } else {
+                    lifecycle::spawn_job(&job, &mut self.controls, &self.event_tx);
+                }
+            }
+            details::Action::Cancel => {
+                if let Some(control) = self.controls.get(&job.id) {
+                    control.request_cancel();
+                }
+            }
+            details::Action::OpenFolder => details::open_folder(&job.folder),
+        }
+    }
+
     fn toolbar(&mut self, ctx: &egui::Context, p: &Palette) {
         TopBottomPanel::top("toolbar")
             .frame(
@@ -501,6 +557,13 @@ impl eframe::App for LotusApp {
         let p = theme::palette(self.settings.theme_mode);
         self.sidebar(ctx, &p);
         self.toolbar(ctx, &p);
+        queue_view::status_bar(
+            ctx,
+            &self.queue,
+            self.settings.global_speed_limit_kbps,
+            &p,
+        );
+        self.details_panel(ctx, &p);
 
         CentralPanel::default().show(ctx, |ui| match self.nav {
             Nav::Home => {
@@ -514,15 +577,20 @@ impl eframe::App for LotusApp {
                 ui.add_space(16.0);
                 queue_view::stats_row(ui, &self.queue, &p);
                 ui.add_space(18.0);
-                let filter = self.filter;
-                queue_view::list_panel(
+                queue_view::summary_line(ui, &self.queue, &p);
+                ui.add_space(10.0);
+                let picked = queue_view::list_panel(
                     ui,
                     &mut self.queue,
-                    filter,
+                    self.filter,
+                    &self.selected,
                     &mut self.controls,
                     &self.event_tx,
                     &p,
                 );
+                if let Some(id) = picked {
+                    self.selected = Some(id);
+                }
             }
             Nav::Queue => {
                 ui.add_space(16.0);
@@ -535,15 +603,18 @@ impl eframe::App for LotusApp {
                     }
                 }
                 ui.add_space(12.0);
-                let filter = self.filter;
-                queue_view::list_panel(
+                let picked = queue_view::list_panel(
                     ui,
                     &mut self.queue,
-                    filter,
+                    self.filter,
+                    &self.selected,
                     &mut self.controls,
                     &self.event_tx,
                     &p,
                 );
+                if let Some(id) = picked {
+                    self.selected = Some(id);
+                }
             }
             Nav::Settings => {
                 settings_view::settings_panel(ui, &mut self.settings, self.bridge_port, &p)
