@@ -95,14 +95,26 @@ fn serve(mut stream: TcpStream, tx: &Sender<AddRequest>, cmd_tx: &Sender<BridgeC
     let target = parts.next().unwrap_or("/").to_string();
 
     let mut content_length = 0usize;
+    let mut origin: Option<String> = None;
     for line in lines {
         let Some((name, value)) = line.split_once(':') else {
             continue;
         };
-        if name.trim().eq_ignore_ascii_case("content-length") {
-            content_length = value.trim().parse().unwrap_or(0);
+        let name = name.trim();
+        let value = value.trim();
+        if name.eq_ignore_ascii_case("content-length") {
+            content_length = value.parse().unwrap_or(0);
+        } else if name.eq_ignore_ascii_case("origin") {
+            origin = Some(value.to_ascii_lowercase());
         }
     }
+    if let Some(origin) = origin.as_deref() {
+        if !extension_origin(origin) {
+            respond(&mut stream, 403, "{\"ok\":false,\"error\":\"origin not allowed\"}");
+            return false;
+        }
+    }
+    set_reply_origin(origin.as_deref());
     if content_length > MAX_BODY {
         respond(&mut stream, 413, "{\"ok\":false,\"error\":\"body too large\"}");
         return false;
@@ -275,11 +287,34 @@ fn read_body(stream: &mut TcpStream, mut rest: Vec<u8>, want: usize) -> Vec<u8> 
     rest
 }
 
+/// Only browser extensions may talk to the bridge. A page on the open web that
+/// fetches this port would otherwise be able to queue downloads and read the
+/// queue; the extension itself is exempt from CORS because its manifest lists
+/// this host, so no Access-Control-Allow-Origin header is needed here.
+fn extension_origin(origin: &str) -> bool {
+    [
+        "chrome-extension://",
+        "moz-extension://",
+        "safari-web-extension://",
+    ]
+    .iter()
+    .any(|prefix| origin.starts_with(*prefix) && origin.len() > prefix.len())
+}
+
+thread_local! {
+    static REPLY_ORIGIN: std::cell::RefCell<Option<String>> = std::cell::RefCell::new(None);
+}
+
+fn set_reply_origin(origin: Option<&str>) {
+    REPLY_ORIGIN.with(|slot| *slot.borrow_mut() = origin.map(|value| value.to_string()));
+}
+
 fn respond(stream: &mut TcpStream, status: u16, body: &str) {
     let reason = match status {
         200 => "OK",
         204 => "No Content",
         400 => "Bad Request",
+        403 => "Forbidden",
         404 => "Not Found",
         405 => "Method Not Allowed",
         413 => "Payload Too Large",
@@ -288,15 +323,15 @@ fn respond(stream: &mut TcpStream, status: u16, body: &str) {
     };
     let payload = body.as_bytes();
     let length = if status == 204 { 0 } else { payload.len() };
+    let cors = REPLY_ORIGIN.with(|slot| match slot.borrow().as_deref() {
+        Some(origin) => format!("Access-Control-Allow-Origin: {origin}\r\n"),
+        None => String::new(),
+    });
     let head = format!(
         "HTTP/1.1 {status} {reason}\r\n\
          Content-Type: application/json\r\n\
          Content-Length: {length}\r\n\
-         Access-Control-Allow-Origin: *\r\n\
-         Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n\
-         Access-Control-Allow-Headers: Content-Type\r\n\
-         Access-Control-Allow-Private-Network: true\r\n\
-         Access-Control-Max-Age: 600\r\n\
+         {cors}\
          Cache-Control: no-store\r\n\
          Connection: close\r\n\r\n"
     );

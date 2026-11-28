@@ -15,6 +15,28 @@
   <p class="label">This tab</p>
   <p class="url" id="url">-</p>
 
+  <div class="quality" id="qualityRow" hidden>
+    <label for="quality">Quality</label>
+    <select id="quality">
+      <optgroup label="Video">
+        <option value="2160p">2160p</option>
+        <option value="1440p">1440p</option>
+        <option value="1080p">1080p</option>
+        <option value="720p" selected>720p</option>
+        <option value="480p">480p</option>
+        <option value="360p">360p</option>
+        <option value="240p">240p</option>
+      </optgroup>
+      <optgroup label="Audio">
+        <option value="mp3">mp3</option>
+        <option value="aac">aac</option>
+        <option value="opus">opus</option>
+        <option value="flac">flac</option>
+        <option value="wav">wav</option>
+      </optgroup>
+    </select>
+  </div>
+
   <button id="send" class="primary" type="button" disabled>Add to queue</button>
   <p class="note" id="note"></p>
 

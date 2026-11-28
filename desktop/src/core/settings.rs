@@ -37,9 +37,44 @@ impl TrafficMode {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum Lang {
+    #[default]
+    En,
+    Ru,
+}
+
+impl Lang {
+    pub fn all() -> [Lang; 2] {
+        [Lang::En, Lang::Ru]
+    }
+
+    pub fn code(self) -> &'static str {
+        match self {
+            Lang::En => "en",
+            Lang::Ru => "ru",
+        }
+    }
+
+    pub fn from_code(code: &str) -> Lang {
+        match code.trim().to_ascii_lowercase().as_str() {
+            "ru" => Lang::Ru,
+            _ => Lang::En,
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Lang::En => "English",
+            Lang::Ru => "Русский",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
+    pub language: Lang,
     pub theme_mode: ThemeMode,
     pub default_folder: String,
     pub global_speed_limit_kbps: u64,
@@ -68,6 +103,7 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            language: Lang::En,
             theme_mode: ThemeMode::System,
             default_folder: default_download_folder(),
             global_speed_limit_kbps: 0,

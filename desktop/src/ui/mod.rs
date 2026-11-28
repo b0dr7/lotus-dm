@@ -5,6 +5,7 @@ pub mod clipboard_watch;
 pub mod details;
 pub mod format;
 pub mod help_view;
+pub mod i18n;
 pub mod lifecycle;
 pub mod queue_view;
 pub mod row_view;

@@ -26,6 +26,8 @@
 
 * { box-sizing: border-box; }
 
+[hidden] { display: none !important; }
+
 body {
   width: 300px;
   margin: 0;
@@ -76,6 +78,25 @@ body {
   overflow-wrap: anywhere;
   max-height: 62px;
   overflow: hidden;
+}
+
+.quality {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.quality select {
+  margin-left: auto;
+  padding: 5px 7px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
 }
 
 .primary {

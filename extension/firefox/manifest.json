@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Lotus Download Manager",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Send links from Firefox straight to the Lotus Download Manager queue.",
   "homepage_url": "https://b0dr7.github.io/lotus-dm/",
   "icons": {

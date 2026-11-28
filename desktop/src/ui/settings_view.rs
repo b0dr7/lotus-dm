@@ -1,7 +1,8 @@
 use eframe::egui::{self, RichText};
 
-use crate::core::settings::{self, Settings};
+use crate::core::settings::{self, Lang, Settings};
 use crate::engine;
+use crate::ui::i18n::{self, Key};
 use crate::ui::theme::{self, Palette, ThemeMode};
 
 fn persist(cfg: &Settings) {
@@ -12,13 +13,32 @@ fn persist(cfg: &Settings) {
 
 pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option<u16>, p: &Palette) {
     ui.add_space(8.0);
-    ui.heading("Settings");
+    let lang = cfg.language;
+    ui.heading(i18n::tr(lang, Key::SettingsTitle));
     ui.add_space(16.0);
 
-    ui.label(RichText::new("Theme").color(p.text));
-    ui.label(
-        RichText::new("System follows the Windows light and dark setting.").color(p.muted),
-    );
+    ui.label(RichText::new(i18n::tr(lang, Key::Language)).color(p.text));
+    ui.label(RichText::new(i18n::tr(lang, Key::LanguageHint)).color(p.muted));
+    ui.add_space(6.0);
+    let mut language = cfg.language;
+    ui.horizontal_wrapped(|ui| {
+        for candidate in Lang::all() {
+            if ui
+                .selectable_label(language == candidate, candidate.label())
+                .clicked()
+            {
+                language = candidate;
+            }
+        }
+    });
+    if language != cfg.language {
+        cfg.language = language;
+        persist(cfg);
+    }
+    ui.add_space(14.0);
+
+    ui.label(RichText::new(i18n::tr(lang, Key::Theme)).color(p.text));
+    ui.label(RichText::new(i18n::tr(lang, Key::ThemeHint)).color(p.muted));
     ui.add_space(6.0);
     let mut mode = cfg.theme_mode;
     ui.horizontal_wrapped(|ui| {
@@ -30,7 +50,7 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
             ThemeMode::HighContrast,
         ] {
             if ui
-                .selectable_label(mode == candidate, candidate.label())
+                .selectable_label(mode == candidate, i18n::theme_label(lang, candidate))
                 .clicked()
             {
                 mode = candidate;
@@ -44,13 +64,13 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
     }
     ui.add_space(14.0);
 
-    ui.label(RichText::new("Default download folder").color(p.text));
+    ui.label(RichText::new(i18n::tr(lang, Key::DefaultFolder)).color(p.text));
     ui.horizontal(|ui| {
         ui.add_sized(
             [ui.available_width() - 92.0, 26.0],
             egui::TextEdit::singleline(&mut cfg.default_folder),
         );
-        if ui.button("Browse").clicked() {
+        if ui.button(i18n::tr(lang, Key::Browse)).clicked() {
             if let Some(path) = rfd::FileDialog::new().pick_folder() {
                 cfg.default_folder = path.to_string_lossy().into_owned();
                 persist(cfg);
@@ -59,28 +79,21 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
     });
     ui.add_space(12.0);
 
-    ui.label(RichText::new("Global speed limit").color(p.text));
-    ui.label(
-        RichText::new(
-            "Shared by every running download. 0 = unlimited. Per-download limits override it.",
-        )
-        .color(p.muted),
-    );
+    ui.label(RichText::new(i18n::tr(lang, Key::GlobalSpeedLimit)).color(p.text));
+    ui.label(RichText::new(i18n::tr(lang, Key::GlobalSpeedHint)).color(p.muted));
     ui.add_space(6.0);
-    let response = ui.add(egui::DragValue::new(&mut cfg.global_speed_limit_kbps).suffix(" KB/s"));
+    let response = ui.add(
+        egui::DragValue::new(&mut cfg.global_speed_limit_kbps)
+            .suffix(i18n::tr(lang, Key::SpeedSuffix)),
+    );
     if response.changed() {
         engine::set_global_limit_kbps(cfg.global_speed_limit_kbps);
         persist(cfg);
     }
     ui.add_space(12.0);
 
-    ui.label(RichText::new("Traffic mode").color(p.text));
-    ui.label(
-        RichText::new(
-            "Low / Medium / High set a shared speed cap. Custom keeps the value above. Unlimited removes it.",
-        )
-        .color(p.muted),
-    );
+    ui.label(RichText::new(i18n::tr(lang, Key::TrafficMode)).color(p.text));
+    ui.label(RichText::new(i18n::tr(lang, Key::TrafficHint)).color(p.muted));
     ui.add_space(6.0);
     let mut mode = cfg.traffic_mode;
     ui.horizontal_wrapped(|ui| {
@@ -92,7 +105,7 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
             settings::TrafficMode::Custom,
         ] {
             if ui
-                .selectable_label(mode == candidate, candidate.label())
+                .selectable_label(mode == candidate, i18n::traffic_label(lang, candidate))
                 .clicked()
             {
                 mode = candidate;
@@ -108,8 +121,8 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
         persist(cfg);
     }
     ui.add_space(8.0);
-    ui.label(RichText::new("Max connections per server").color(p.text));
-    ui.label(RichText::new("Segments used for one file (1-32). Default 8.").color(p.muted));
+    ui.label(RichText::new(i18n::tr(lang, Key::MaxConns)).color(p.text));
+    ui.label(RichText::new(i18n::tr(lang, Key::MaxConnsHint)).color(p.muted));
     let r = ui.add(
         egui::DragValue::new(&mut cfg.max_connections_per_server)
             .range(1..=32)
@@ -119,27 +132,17 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
         persist(cfg);
     }
     ui.add_space(8.0);
-    ui.label(RichText::new("Max simultaneous downloads").color(p.text));
-    ui.label(
-        RichText::new("How many run at once; the rest wait in the queue. 0 = no limit. Default 3.")
-            .color(p.muted),
-    );
+    ui.label(RichText::new(i18n::tr(lang, Key::MaxConcurrent)).color(p.text));
+    ui.label(RichText::new(i18n::tr(lang, Key::MaxConcurrentHint)).color(p.muted));
     let r = ui.add(egui::DragValue::new(&mut cfg.max_concurrent_downloads).range(0..=32));
     if r.changed() {
         persist(cfg);
     }
     ui.add_space(12.0);
 
-    ui.label(RichText::new("Torrents").color(p.text));
-    ui.label(RichText::new("Protocol encryption").color(p.text));
-    ui.label(
-        RichText::new(
-            "MSE. Enabled prefers encrypted peers and still allows plaintext; Forced only \
-             connects to peers that complete the handshake. rqbit sets this per session, so \
-             it applies to the next torrent once no download is running.",
-        )
-        .color(p.muted),
-    );
+    ui.label(RichText::new(i18n::tr(lang, Key::Torrents)).color(p.text));
+    ui.label(RichText::new(i18n::tr(lang, Key::Encryption)).color(p.text));
+    ui.label(RichText::new(i18n::tr(lang, Key::EncryptionHint)).color(p.muted));
     ui.add_space(6.0);
     let mut encryption = cfg.torrent_encryption;
     ui.horizontal_wrapped(|ui| {
@@ -149,7 +152,7 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
             engine::torrent::EncryptionMode::Forced,
         ] {
             if ui
-                .selectable_label(encryption == candidate, candidate.label())
+                .selectable_label(encryption == candidate, i18n::encryption_label(lang, candidate))
                 .clicked()
             {
                 encryption = candidate;
@@ -163,42 +166,26 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
     }
     ui.add_space(10.0);
 
-    ui.label(
-        RichText::new(
-            "DHT and local-network discovery are set the same way: an idle engine is \
-             rebuilt at once, and a running download picks them up when nothing is \
-             downloading any more.",
-        )
-        .color(p.muted),
-    );
+    ui.label(RichText::new(i18n::tr(lang, Key::DhtLsdHint)).color(p.muted));
     ui.add_space(4.0);
     let mut discovery_changed = ui
-        .checkbox(
-            &mut cfg.torrent_dht,
-            "Use the DHT (needed for magnet links without trackers)",
-        )
+        .checkbox(&mut cfg.torrent_dht, i18n::tr(lang, Key::DhtCheck))
         .changed();
     discovery_changed |= ui
-        .checkbox(&mut cfg.torrent_lsd, "Find peers on the local network")
+        .checkbox(&mut cfg.torrent_lsd, i18n::tr(lang, Key::LsdCheck))
         .changed();
     if discovery_changed {
         engine::torrent::set_policy(cfg.torrent_policy());
         persist(cfg);
     }
     ui.add_space(8.0);
-    ui.label(
-        RichText::new(
-            "Stop seeding at this share ratio and/or after this many minutes. 0 and 0 stop \
-             as soon as the download is complete.",
-        )
-        .color(p.muted),
-    );
+    ui.label(RichText::new(i18n::tr(lang, Key::SeedHint)).color(p.muted));
     let mut seed_changed = ui
         .add(
             egui::DragValue::new(&mut cfg.torrent_seed_ratio)
                 .range(0.0..=100.0)
                 .speed(0.1)
-                .suffix(" ratio"),
+                .suffix(i18n::tr(lang, Key::RatioSuffix)),
         )
         .changed();
     seed_changed |= ui
@@ -206,7 +193,7 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
             egui::DragValue::new(&mut cfg.torrent_seed_minutes)
                 .range(0..=10_080u64)
                 .speed(5)
-                .suffix(" min"),
+                .suffix(i18n::tr(lang, Key::MinSuffix)),
         )
         .changed();
     if seed_changed {
@@ -215,17 +202,20 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
     }
     ui.add_space(12.0);
 
-    ui.label(RichText::new("Auto-shutdown").color(p.text));
-    ui.label(RichText::new("Close the app automatically once the queue finishes.").color(p.muted));
-    if ui.checkbox(&mut cfg.auto_shutdown, "Shut down when the queue is done").changed() {
+    ui.label(RichText::new(i18n::tr(lang, Key::AutoShutdown)).color(p.text));
+    ui.label(RichText::new(i18n::tr(lang, Key::AutoShutdownHint)).color(p.muted));
+    if ui
+        .checkbox(&mut cfg.auto_shutdown, i18n::tr(lang, Key::AutoShutdownCheck))
+        .changed()
+    {
         persist(cfg);
     }
     ui.add_space(12.0);
 
-    ui.label(RichText::new("Launch at startup").color(p.text));
-    ui.label(RichText::new("Add Lotus to the per-user Windows Run key.").color(p.muted));
+    ui.label(RichText::new(i18n::tr(lang, Key::LaunchAtStartup)).color(p.text));
+    ui.label(RichText::new(i18n::tr(lang, Key::LaunchHint)).color(p.muted));
     if ui
-        .checkbox(&mut cfg.launch_at_startup, "Start with Windows")
+        .checkbox(&mut cfg.launch_at_startup, i18n::tr(lang, Key::LaunchCheck))
         .changed()
     {
         crate::core::sys::set_autostart(cfg.launch_at_startup);
@@ -233,65 +223,45 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
     }
     ui.add_space(12.0);
 
-    ui.label(RichText::new("Portable mode").color(p.text));
-    ui.label(
-        RichText::new(
-            "Portable mode is enabled by placing an empty file named 'portable' next to the \
-             executable. Data is then kept in a 'data' folder beside it instead of %APPDATA%.",
-        )
-        .color(p.muted),
-    );
+    ui.label(RichText::new(i18n::tr(lang, Key::Portable)).color(p.text));
+    ui.label(RichText::new(i18n::tr(lang, Key::PortableHint)).color(p.muted));
     ui.add_space(12.0);
 
-    ui.label(RichText::new("Tray and notifications").color(p.text));
-    ui.label(
-        RichText::new(
-            "Downloads keep running with the window hidden. The tray menu has Open, Pause all, \
-             Resume all, speed presets and Quit.",
-        )
-        .color(p.muted),
-    );
+    ui.label(RichText::new(i18n::tr(lang, Key::Tray)).color(p.text));
+    ui.label(RichText::new(i18n::tr(lang, Key::TrayHint)).color(p.muted));
     ui.add_space(4.0);
     let mut tray_changed = ui
-        .checkbox(&mut cfg.close_to_tray, "Close button hides to tray")
+        .checkbox(&mut cfg.close_to_tray, i18n::tr(lang, Key::TrayClose))
         .changed();
     tray_changed |= ui
-        .checkbox(&mut cfg.start_hidden, "Start hidden in the tray")
+        .checkbox(&mut cfg.start_hidden, i18n::tr(lang, Key::TrayHidden))
         .changed();
     tray_changed |= ui
-        .checkbox(&mut cfg.notifications, "Notify when a download finishes or fails")
+        .checkbox(&mut cfg.notifications, i18n::tr(lang, Key::NotifyCheck))
         .changed();
     if tray_changed {
         persist(cfg);
     }
     ui.add_space(12.0);
 
-    ui.label(RichText::new("Clipboard watcher").color(p.text));
-    ui.label(
-        RichText::new(
-            "While enabled and the window is focused, watch for copied URLs every 2 seconds.",
-        )
-        .color(p.muted),
-    );
+    ui.label(RichText::new(i18n::tr(lang, Key::Clipboard)).color(p.text));
+    ui.label(RichText::new(i18n::tr(lang, Key::ClipboardHint)).color(p.muted));
     ui.add_space(4.0);
     if ui
-        .checkbox(&mut cfg.clipboard_watch, "Watch clipboard for URLs")
+        .checkbox(&mut cfg.clipboard_watch, i18n::tr(lang, Key::ClipboardCheck))
         .changed()
     {
         persist(cfg);
     }
     ui.add_space(12.0);
 
-    ui.label(RichText::new("Auto-start queue").color(p.text));
-    ui.label(
-        RichText::new("When on, queued downloads start automatically at this time every day.")
-            .color(p.muted),
-    );
+    ui.label(RichText::new(i18n::tr(lang, Key::AutoStart)).color(p.text));
+    ui.label(RichText::new(i18n::tr(lang, Key::AutoStartHint)).color(p.muted));
     ui.add_space(4.0);
     let mut schedule_changed = false;
     ui.horizontal(|ui| {
         schedule_changed |= ui
-            .checkbox(&mut cfg.auto_start_enabled, "Auto-start queue at")
+            .checkbox(&mut cfg.auto_start_enabled, i18n::tr(lang, Key::AutoStartCheck))
             .changed();
         schedule_changed |= ui
             .add(
@@ -314,17 +284,11 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
     }
     ui.add_space(12.0);
 
-    ui.label(RichText::new("Browser bridge").color(p.text));
-    ui.label(
-        RichText::new(
-            "Lets the Lotus extension hand links to the queue. Listens on 127.0.0.1 only - \
-             nothing is reachable from other machines.",
-        )
-        .color(p.muted),
-    );
+    ui.label(RichText::new(i18n::tr(lang, Key::Bridge)).color(p.text));
+    ui.label(RichText::new(i18n::tr(lang, Key::BridgeHint)).color(p.muted));
     ui.add_space(4.0);
     let mut bridge_changed = ui
-        .checkbox(&mut cfg.bridge_enabled, "Accept links from the browser extension")
+        .checkbox(&mut cfg.bridge_enabled, i18n::tr(lang, Key::BridgeCheck))
         .changed();
     ui.horizontal(|ui| {
         bridge_changed |= ui
@@ -334,27 +298,22 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
                     .speed(1),
             )
             .changed();
-        ui.label(RichText::new("port - takes effect after restart").color(p.muted));
+        ui.label(RichText::new(i18n::tr(lang, Key::BridgePortHint)).color(p.muted));
     });
     let state = match (cfg.bridge_enabled, bridge_port) {
-        (true, Some(port)) => format!("Listening on http://127.0.0.1:{port}"),
-        (true, None) => "Not listening - the port is busy. Change it and restart.".to_string(),
-        (false, _) => "Off - the browser extension cannot reach this app.".to_string(),
+        (true, Some(port)) => format!(
+            "{}http://127.0.0.1:{port}",
+            i18n::tr(lang, Key::ListeningOn)
+        ),
+        (true, None) => i18n::tr(lang, Key::PortBusy).to_string(),
+        (false, _) => i18n::tr(lang, Key::BridgeOff).to_string(),
     };
     ui.label(RichText::new(state).color(p.muted));
     if bridge_changed {
         persist(cfg);
     }
     ui.add_space(6.0);
-    ui.label(RichText::new("Extension setup").color(p.text));
-    ui.label(
-        RichText::new(
-            "Firefox: install Lotus from addons.mozilla.org. Chromium: download the .zip from \
-             the Lotus site, unzip it, open chrome:
-             Load unpacked and pick the unzipped folder. Then pin Lotus to the toolbar. The \
-             bridge line above should read Listening.",
-        )
-        .color(p.muted),
-    );
+    ui.label(RichText::new(i18n::tr(lang, Key::ExtensionSetup)).color(p.text));
+    ui.label(RichText::new(i18n::tr(lang, Key::ExtensionHint)).color(p.muted));
     ui.add_space(8.0);
 }

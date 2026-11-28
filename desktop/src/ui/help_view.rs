@@ -28,6 +28,7 @@ pub fn help_panel(ui: &mut egui::Ui, p: &Palette) {
     ui.label("Chromium browsers need the folder once, then they keep it. It takes about a minute.");
     ui.label("1. Unzip the extension into a folder you will keep, for example Documents\\Lotus-extension.");
     ui.label("2. Open chrome://extensions - in Edge that is edge://extensions.");
+    ui.label("3. Turn on Developer mode in the top right corner of that page.");
     ui.label("4. Click Load unpacked and pick the folder you unzipped.");
     ui.label("5. Pin Lotus to the toolbar from the puzzle-piece menu, so the icon is one click away.");
     ui.label("6. Start Lotus Download Manager, then click the Lotus icon: the badge should read connected.");
