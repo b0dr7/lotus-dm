@@ -35,6 +35,7 @@ pub fn batch_dialog_window(
                 [420.0, 180.0],
                 egui::TextEdit::multiline(&mut dialog.text)
                     .hint_text("https://example.com/a.zip\nhttps://example.com/b.zip"),
+            );
             ui.add_space(12.0);
             ui.horizontal(|ui| {
                 let has_lines = dialog.text.lines().any(|line| !line.trim().is_empty());
