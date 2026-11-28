@@ -172,6 +172,11 @@ pub fn show(ctx: &egui::Context, job: &mut DownloadJob, p: &Palette) -> Outcome 
                 outcome.changed = true;
             }
 
+            if let Some(quality) = &job.quality {
+                ui.add_space(8.0);
+                ui.label(RichText::new(format!("Quality: {quality}")).color(p.text));
+            }
+
             ui.add_space(14.0);
             ui.horizontal_wrapped(|ui| {
                 let (label, action, primary) = match job.status {
