@@ -536,7 +536,7 @@ impl LotusApp {
                         self.resume_all();
                     }
                     if let Some(msg) = &self.convert_msg {
-                        ui.label(RichText::new(msg.as_str()).size(11.0).color(p.muted));
+                        ui.label(egui::RichText::new(msg.as_str()).size(11.0).color(p.muted));
                     }
                 });
                 ui.add_space(9.0);
