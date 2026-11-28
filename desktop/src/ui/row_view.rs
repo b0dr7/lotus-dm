@@ -260,7 +260,7 @@ fn draw_progress_bar(
         .rect_filled(fill, CornerRadius::same(4), p.accent);
 }
 
-fn action_text(lang: Lang, label: &str) -> &'static str {
+fn action_text(lang: Lang, label: &str) -> &str {
     match label {
         "Start" => i18n::tr(lang, Key::Start),
         "Pause" => i18n::tr(lang, Key::Pause),
