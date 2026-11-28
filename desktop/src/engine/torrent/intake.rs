@@ -6,7 +6,7 @@
 
 use std::path::{Path, PathBuf};
 
-use librqbit::AddTorrent;
+use super::rqbitapi::AddTorrent;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TorrentSource {

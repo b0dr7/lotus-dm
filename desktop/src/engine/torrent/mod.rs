@@ -16,6 +16,13 @@ use std::sync::{Mutex, PoisonError};
 
 use serde::{Deserialize, Serialize};
 
+// 64-bit talks to the pinned MSE revision; 32-bit cannot compile it, so it uses
+// the released crate (Cargo needs the second package under another name).
+#[cfg(target_pointer_width = "64")]
+pub use librqbit as rqbitapi;
+#[cfg(target_pointer_width = "32")]
+pub use librqbit_release as rqbitapi;
+
 pub mod intake;
 pub mod session;
 pub mod worker;
@@ -53,8 +60,8 @@ impl EncryptionMode {
 /// the pinned rqbit pull request's DH-768 code is 64-bit only, so 32-bit
 /// builds use the released crate, which has no `mse_mode` at all.
 #[cfg(target_pointer_width = "64")]
-pub fn apply_mse(opts: &mut librqbit::SessionOptions, mode: EncryptionMode) {
-    use librqbit::MseMode;
+pub fn apply_mse(opts: &mut rqbitapi::SessionOptions, mode: EncryptionMode) {
+    use rqbitapi::MseMode;
 
     opts.mse_mode = match mode {
         EncryptionMode::Disabled => MseMode::Disabled,
@@ -64,7 +71,7 @@ pub fn apply_mse(opts: &mut librqbit::SessionOptions, mode: EncryptionMode) {
 }
 
 #[cfg(not(target_pointer_width = "64"))]
-pub fn apply_mse(_opts: &mut librqbit::SessionOptions, _mode: EncryptionMode) {}
+pub fn apply_mse(_opts: &mut rqbitapi::SessionOptions, _mode: EncryptionMode) {}
 
 /// What the queue asks of the torrent engine: the encryption policy, the
 /// peer-discovery switches and how long to seed.
@@ -128,10 +135,10 @@ mod tests {
 
     #[test]
     fn encryption_modes_map_onto_rqbits_mse_modes() {
-        let mut opts = librqbit::SessionOptions::default();
+        let mut opts = rqbitapi::SessionOptions::default();
         apply_mse(&mut opts, EncryptionMode::Forced);
-        assert_eq!(opts.mse_mode, librqbit::MseMode::Forced);
+        assert_eq!(opts.mse_mode, rqbitapi::MseMode::Forced);
         apply_mse(&mut opts, EncryptionMode::Disabled);
-        assert_eq!(opts.mse_mode, librqbit::MseMode::Disabled);
+        assert_eq!(opts.mse_mode, rqbitapi::MseMode::Disabled);
     }
 }

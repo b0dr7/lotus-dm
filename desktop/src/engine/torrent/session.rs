@@ -15,8 +15,8 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock, PoisonError};
 use std::time::Duration;
 
-use librqbit::api::TorrentIdOrHash;
-use librqbit::{
+use super::rqbitapi::api::TorrentIdOrHash;
+use super::rqbitapi::{
     AddTorrentOptions, AddTorrentResponse, ManagedTorrent, Session, SessionOptions,
 };
 
