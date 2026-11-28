@@ -126,11 +126,10 @@ pub fn add_dialog_window(
         };
         let quality = if crate::engine::media::is_media(&url) {
             dialog.quality.clone().or_else(|| {
-                crate::engine::media::resolve(
+                Some(crate::engine::media::resolve(
                     crate::engine::media::MediaKind::Video,
                     "720p",
-                )
-                .map(|q| q.label)
+                ).label)
             })
         } else {
             None
