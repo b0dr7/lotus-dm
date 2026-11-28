@@ -2749,17 +2749,17 @@ dependencies = [
  "http",
  "intervaltree",
  "itertools",
- "librqbit-bencode",
- "librqbit-buffers",
- "librqbit-clone-to-owned",
- "librqbit-core",
- "librqbit-dht",
+ "librqbit-bencode 9.0.1",
+ "librqbit-buffers 9.0.1",
+ "librqbit-clone-to-owned 9.0.1",
+ "librqbit-core 9.0.1",
+ "librqbit-dht 9.0.1",
  "librqbit-dualstack-sockets",
- "librqbit-lsd",
- "librqbit-peer-protocol",
- "librqbit-sha1-wrapper",
- "librqbit-tracker-comms",
- "librqbit-upnp",
+ "librqbit-lsd 9.0.1",
+ "librqbit-peer-protocol 9.0.1",
+ "librqbit-sha1-wrapper 9.0.1",
+ "librqbit-tracker-comms 9.0.1",
+ "librqbit-upnp 9.0.1",
  "librqbit-utp",
  "memmap2",
  "mime_guess",
@@ -2767,6 +2767,70 @@ dependencies = [
  "parking_lot 0.12.5",
  "rand 0.10.4",
  "rc4",
+ "regex",
+ "reqwest",
+ "rlimit",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "serde_urlencoded",
+ "serde_with",
+ "size_format",
+ "socket2",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-socks",
+ "tokio-stream",
+ "tokio-util",
+ "tracing",
+ "url",
+ "urlencoding",
+ "uuid",
+ "walkdir",
+ "windows 0.62.2",
+]
+
+[[package]]
+name = "librqbit"
+version = "9.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e35a06e481e854f69141928d067406397b3ad7a47bfdc095bc31325f44f5d13"
+dependencies = [
+ "anyhow",
+ "arc-swap",
+ "async-compression",
+ "async-stream",
+ "async-trait",
+ "axum-extra",
+ "backon",
+ "base64 0.23.1",
+ "bitvec",
+ "byteorder",
+ "bytes",
+ "dashmap",
+ "futures",
+ "governor",
+ "hex 0.4.3",
+ "http",
+ "intervaltree",
+ "itertools",
+ "librqbit-bencode 9.1.0",
+ "librqbit-buffers 9.1.0",
+ "librqbit-clone-to-owned 9.1.0",
+ "librqbit-core 9.1.0",
+ "librqbit-dht 9.1.0",
+ "librqbit-dualstack-sockets",
+ "librqbit-lsd 9.1.0",
+ "librqbit-peer-protocol 9.1.0",
+ "librqbit-sha1-wrapper 9.1.0",
+ "librqbit-tracker-comms 9.1.0",
+ "librqbit-upnp 9.1.0",
+ "librqbit-utp",
+ "memmap2",
+ "mime_guess",
+ "nix 0.30.1",
+ "parking_lot 0.12.5",
+ "rand 0.10.4",
  "regex",
  "reqwest",
  "rlimit",
@@ -2799,8 +2863,25 @@ dependencies = [
  "arrayvec",
  "atoi",
  "bytes",
- "librqbit-buffers",
- "librqbit-clone-to-owned",
+ "librqbit-buffers 9.0.1",
+ "librqbit-clone-to-owned 9.0.1",
+ "serde",
+ "serde_derive",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "librqbit-bencode"
+version = "9.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0cf295fa65b3ad66bd363a5d3a278730352745b72ff0f5b6e6010612351924e5"
+dependencies = [
+ "anyhow",
+ "arrayvec",
+ "atoi",
+ "bytes",
+ "librqbit-buffers 9.1.0",
+ "librqbit-clone-to-owned 9.1.0",
  "serde",
  "serde_derive",
  "thiserror 2.0.21",
@@ -2812,7 +2893,19 @@ version = "9.0.1"
 source = "git+https://github.com/lingdiansr/rqbit?rev=9b7877cbd884f77c8923e81287b6ed4bf2b2c67f#9b7877cbd884f77c8923e81287b6ed4bf2b2c67f"
 dependencies = [
  "bytes",
- "librqbit-clone-to-owned",
+ "librqbit-clone-to-owned 9.0.1",
+ "serde",
+ "serde_derive",
+]
+
+[[package]]
+name = "librqbit-buffers"
+version = "9.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a11501f6b2d68169725cf9e030d5ad7a9ede4b3839a9e16a27c4faef7507c8c"
+dependencies = [
+ "bytes",
+ "librqbit-clone-to-owned 9.1.0",
  "serde",
  "serde_derive",
 ]
@@ -2821,6 +2914,15 @@ dependencies = [
 name = "librqbit-clone-to-owned"
 version = "9.0.1"
 source = "git+https://github.com/lingdiansr/rqbit?rev=9b7877cbd884f77c8923e81287b6ed4bf2b2c67f#9b7877cbd884f77c8923e81287b6ed4bf2b2c67f"
+dependencies = [
+ "bytes",
+]
+
+[[package]]
+name = "librqbit-clone-to-owned"
+version = "9.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c611ae410046c2e2cc90b0f300d53fe368d5129f26d822cede8f605f33f7fa84"
 dependencies = [
  "bytes",
 ]
@@ -2838,10 +2940,40 @@ dependencies = [
  "encoding_rs",
  "hex 0.4.3",
  "itertools",
- "librqbit-bencode",
- "librqbit-buffers",
- "librqbit-clone-to-owned",
- "librqbit-sha1-wrapper",
+ "librqbit-bencode 9.0.1",
+ "librqbit-buffers 9.0.1",
+ "librqbit-clone-to-owned 9.0.1",
+ "librqbit-sha1-wrapper 9.0.1",
+ "memchr",
+ "parking_lot 0.12.5",
+ "rand 0.10.4",
+ "serde",
+ "serde_derive",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "librqbit-core"
+version = "9.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af3d5c9eec46a17b87123cee6280126056590143dd1bda7743681297e27737eb"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "chardetng",
+ "data-encoding",
+ "directories",
+ "encoding_rs",
+ "hex 0.4.3",
+ "itertools",
+ "librqbit-bencode 9.1.0",
+ "librqbit-buffers 9.1.0",
+ "librqbit-clone-to-owned 9.1.0",
+ "librqbit-sha1-wrapper 9.1.0",
  "memchr",
  "parking_lot 0.12.5",
  "rand 0.10.4",
@@ -2867,10 +2999,41 @@ dependencies = [
  "futures",
  "indexmap 2.14.2",
  "leaky-bucket",
- "librqbit-bencode",
- "librqbit-buffers",
- "librqbit-clone-to-owned",
- "librqbit-core",
+ "librqbit-bencode 9.0.1",
+ "librqbit-buffers 9.0.1",
+ "librqbit-clone-to-owned 9.0.1",
+ "librqbit-core 9.0.1",
+ "librqbit-dualstack-sockets",
+ "parking_lot 0.12.5",
+ "rand 0.10.4",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
+name = "librqbit-dht"
+version = "9.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "558e74c5bcbb270fc19e1cf0517c26ed132f96c29b43b41f5ec5ce22470393a3"
+dependencies = [
+ "anyhow",
+ "backon",
+ "bytes",
+ "chrono",
+ "dashmap",
+ "futures",
+ "indexmap 2.14.2",
+ "leaky-bucket",
+ "librqbit-bencode 9.1.0",
+ "librqbit-buffers 9.1.0",
+ "librqbit-clone-to-owned 9.1.0",
+ "librqbit-core 9.1.0",
  "librqbit-dualstack-sockets",
  "parking_lot 0.12.5",
  "rand 0.10.4",
@@ -2911,7 +3074,27 @@ dependencies = [
  "bstr",
  "futures",
  "httparse",
- "librqbit-core",
+ "librqbit-core 9.0.1",
+ "librqbit-dualstack-sockets",
+ "parking_lot 0.12.5",
+ "rand 0.10.4",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
+name = "librqbit-lsd"
+version = "9.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a4c9f1c24581f11813f3ad2a45620be83c01a00f3f99bfc2126c204b523d980"
+dependencies = [
+ "anyhow",
+ "atoi",
+ "bstr",
+ "futures",
+ "httparse",
+ "librqbit-core 9.1.0",
  "librqbit-dualstack-sockets",
  "parking_lot 0.12.5",
  "rand 0.10.4",
@@ -2930,10 +3113,31 @@ dependencies = [
  "byteorder",
  "bytes",
  "itertools",
- "librqbit-bencode",
- "librqbit-buffers",
- "librqbit-clone-to-owned",
- "librqbit-core",
+ "librqbit-bencode 9.0.1",
+ "librqbit-buffers 9.0.1",
+ "librqbit-clone-to-owned 9.0.1",
+ "librqbit-core 9.0.1",
+ "serde",
+ "serde_derive",
+ "thiserror 2.0.21",
+ "tracing",
+]
+
+[[package]]
+name = "librqbit-peer-protocol"
+version = "9.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "88b018302dbb1d053dfe34aca20b200e9c434d2bc8ea27e41875771bd31008ef"
+dependencies = [
+ "anyhow",
+ "bitvec",
+ "byteorder",
+ "bytes",
+ "itertools",
+ "librqbit-bencode 9.1.0",
+ "librqbit-buffers 9.1.0",
+ "librqbit-clone-to-owned 9.1.0",
+ "librqbit-core 9.1.0",
  "serde",
  "serde_derive",
  "thiserror 2.0.21",
@@ -2950,6 +3154,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "librqbit-sha1-wrapper"
+version = "9.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4633bfa4c77dd7153be92584947d669a0ff8f61b82bb8bf283ff5f11ddee75be"
+dependencies = [
+ "assert_cfg",
+ "crypto-hash",
+]
+
+[[package]]
 name = "librqbit-tracker-comms"
 version = "9.0.1"
 source = "git+https://github.com/lingdiansr/rqbit?rev=9b7877cbd884f77c8923e81287b6ed4bf2b2c67f#9b7877cbd884f77c8923e81287b6ed4bf2b2c67f"
@@ -2960,9 +3174,38 @@ dependencies = [
  "byteorder",
  "futures",
  "itertools",
- "librqbit-bencode",
- "librqbit-buffers",
- "librqbit-core",
+ "librqbit-bencode 9.0.1",
+ "librqbit-buffers 9.0.1",
+ "librqbit-core 9.0.1",
+ "librqbit-dualstack-sockets",
+ "parking_lot 0.12.5",
+ "rand 0.10.4",
+ "reqwest",
+ "serde",
+ "serde_derive",
+ "serde_with",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "url",
+ "urlencoding",
+]
+
+[[package]]
+name = "librqbit-tracker-comms"
+version = "9.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3753f7f7a0dd00cf9fb088d2ba203c7e4df93028f922b5da5ac42e14cdf9b2e7"
+dependencies = [
+ "anyhow",
+ "async-stream",
+ "backon",
+ "byteorder",
+ "futures",
+ "itertools",
+ "librqbit-bencode 9.1.0",
+ "librqbit-buffers 9.1.0",
+ "librqbit-core 9.1.0",
  "librqbit-dualstack-sockets",
  "parking_lot 0.12.5",
  "rand 0.10.4",
@@ -2981,6 +3224,28 @@ dependencies = [
 name = "librqbit-upnp"
 version = "9.0.1"
 source = "git+https://github.com/lingdiansr/rqbit?rev=9b7877cbd884f77c8923e81287b6ed4bf2b2c67f#9b7877cbd884f77c8923e81287b6ed4bf2b2c67f"
+dependencies = [
+ "anyhow",
+ "bstr",
+ "futures",
+ "httparse",
+ "librqbit-dualstack-sockets",
+ "network-interface",
+ "quick-xml 0.41.0",
+ "reqwest",
+ "serde",
+ "serde_derive",
+ "socket2",
+ "tokio",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "librqbit-upnp"
+version = "9.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9308348f5235ab719c99c12ac40a0f03288f3469950f5906dd0ba6f202f31a66"
 dependencies = [
  "anyhow",
  "bstr",
@@ -3075,7 +3340,8 @@ version = "0.1.3"
 dependencies = [
  "dirs",
  "eframe",
- "librqbit",
+ "librqbit 9.0.1",
+ "librqbit 9.1.0",
  "rfd",
  "serde",
  "serde_json",
