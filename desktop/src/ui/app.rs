@@ -460,6 +460,10 @@ impl LotusApp {
                 }
             }
             details::Action::OpenFolder => details::open_folder(&job.folder),
+            details::Action::OpenFile => {
+                let path = std::path::Path::new(&job.folder).join(&job.filename);
+                details::open_file(&path.to_string_lossy());
+            }
         }
     }
 

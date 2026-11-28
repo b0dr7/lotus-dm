@@ -11,6 +11,7 @@ pub enum Action {
     Resume,
     Cancel,
     OpenFolder,
+    OpenFile,
 }
 
 pub struct Outcome {
@@ -25,6 +26,22 @@ pub fn open_folder(folder: &str) {
     #[cfg(not(windows))]
     let mut command = std::process::Command::new("xdg-open");
     command.arg(folder);
+    let _ = command.spawn();
+}
+
+pub fn open_file(path: &str) {
+    #[cfg(windows)]
+    let mut command = std::process::Command::new("cmd");
+    #[cfg(windows)]
+    {
+        command.args(["/C", "start", "", path]);
+    }
+    #[cfg(not(windows))]
+    let mut command = std::process::Command::new("xdg-open");
+    #[cfg(not(windows))]
+    {
+        command.arg(path);
+    }
     let _ = command.spawn();
 }
 
@@ -193,6 +210,11 @@ pub fn show(ctx: &egui::Context, job: &mut DownloadJob, p: &Palette) -> Outcome 
                 };
                 if ui.add(button).clicked() {
                     outcome.action = Some(action);
+                }
+                if job.status == JobStatus::Done
+                    && ui.button("Open file").clicked()
+                {
+                    outcome.action = Some(Action::OpenFile);
                 }
                 if matches!(
                     job.status,
