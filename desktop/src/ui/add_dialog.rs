@@ -11,6 +11,8 @@ pub struct AddDialog {
     pub quality: Option<String>,
     pub start_in: String,
     pub delay: bool,
+    /// Mirror URLs, one per line.
+    pub mirrors: String,
 }
 
 pub fn add_dialog_window(
@@ -90,6 +92,13 @@ pub fn add_dialog_window(
                     ui.add_sized([72.0, 26.0], egui::TextEdit::singleline(&mut dialog.start_in));
                 }
             });
+            ui.add_space(8.0);
+            ui.label("Mirrors (one per line)");
+            ui.add_space(2.0);
+            ui.add_sized(
+                [ui.available_width(), 40.0],
+                egui::TextEdit::multiline(&mut dialog.mirrors),
+            );
             ui.add_space(12.0);
             ui.horizontal(|ui| {
                 let can_submit = !dialog.url.trim().is_empty();
@@ -146,9 +155,18 @@ pub fn add_dialog_window(
         } else {
             None
         };
+        let mirrors: Vec<String> = dialog
+            .mirrors
+            .trim()
+            .lines()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string)
+            .collect();
         let mut job = DownloadJob::new_queued(url, filename, folder);
         job.quality = quality;
         job.start_at = start_at;
+        job.mirrors = mirrors;
         queue.push(job);
         if let Err(err) = save(queue) {
             eprintln!("lotusdm: queue save failed: {err}");
