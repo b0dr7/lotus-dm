@@ -314,6 +314,18 @@ impl LotusApp {
         self.start_pending();
     }
 
+    fn retry_failed(&mut self) {
+        for job in self.queue.iter_mut() {
+            if job.status == JobStatus::Failed {
+                job.status = JobStatus::Queued;
+                job.error = None;
+                job.received_bytes = 0;
+                job.speed_bps = 0;
+            }
+        }
+        self.start_pending();
+    }
+
     fn start_pending(&mut self) {
         lifecycle::start_pending(
             &mut self.queue,
@@ -592,6 +604,16 @@ impl LotusApp {
                         egui::Button::new("Resume all").min_size(Vec2::new(90.0, 30.0));
                     if ui.add(resume_all).clicked() {
                         self.resume_all();
+                    }
+                    let any_failed = self.queue.iter().any(|j| j.status == JobStatus::Failed);
+                    if ui
+                        .add_enabled(
+                            any_failed,
+                            egui::Button::new("Retry failed").min_size(Vec2::new(90.0, 30.0)),
+                        )
+                        .clicked()
+                    {
+                        self.retry_failed();
                     }
                     if let Some(msg) = &self.convert_msg {
                         ui.label(egui::RichText::new(msg.as_str()).size(11.0).color(p.muted));
