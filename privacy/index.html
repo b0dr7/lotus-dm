@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>(function(){var t=null;try{t=localStorage.getItem("lotus-theme-dm")}catch(e){}
-if(t!=="dark"&&t!=="light"&&t!=="amoled"&&t!=="hc"){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches)?"light":"dark"}
+if(t!=="dark"&&t!=="light"&&t!=="amoled"&&t!=="hc"&&t!=="hc-light"){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches)?"light":"dark"}
 document.documentElement.setAttribute("data-theme",t)})();</script>
 <title>Privacy Policy - Lotus Download Manager</title>
 <link rel="icon" href="../assets/lotus.svg" type="image/svg+xml">
@@ -12,18 +12,16 @@ document.documentElement.setAttribute("data-theme",t)})();</script>
 </head>
 <body>
 <header class="site-header">
-  <a class="brand" href="../"><span class="logo" aria-hidden="true"></span><span>Lotus Download Manager</span></a>
-  <nav class="nav" aria-label="Main">
-    <a href="../">Home</a>
-    <a href="../terms/">Terms</a>
-    <a href="./" aria-current="page">Privacy</a>
-  </nav>
-  <div class="theme-picker" id="theme-picker" role="group" aria-label="Color theme"></div>
+  <span class="mark" aria-label="Lotus Download Manager" draggable="false">
+    <span class="mark-ico" aria-hidden="true"></span>
+    <span class="mark-txt">Lotus</span>
+  </span>
+  <div class="theme-picker" id="theme-picker" aria-label="Color theme"></div>
 </header>
 
-<main class="wrap legal">
+<main class="legal">
   <h1>Privacy Policy - Lotus Download Manager</h1>
-  <p>Last updated: &lt;date&gt;. Short version: we collect nothing. There is nothing to sell, leak, or subpoena.</p>
+  <p>Last updated: November 27, 2026. Short version: we collect nothing. There is nothing to sell, leak, or subpoena.</p>
   <ol>
     <li><strong>WHAT WE COLLECT:</strong> nothing. No accounts, no servers, no analytics, no telemetry, no crash reporting, no ads.</li>
     <li><strong>DATA ON YOUR DEVICE:</strong> settings, queue state, and the files you download are stored locally on your device only.</li>
@@ -37,7 +35,11 @@ document.documentElement.setAttribute("data-theme",t)})();</script>
 </main>
 
 <footer class="site-footer">
-  <a href="../terms/">Terms</a> | <a href="./">Privacy</a>
+  <a href="../">Lotus Download Manager</a>
+  <span class="sep" aria-hidden="true">|</span>
+  <a href="../terms/">Terms</a>
+  <span class="sep" aria-hidden="true">|</span>
+  <a href="./" aria-current="page">Privacy</a>
 </footer>
 <script src="../theme.js"></script>
 </body>
