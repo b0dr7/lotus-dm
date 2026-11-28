@@ -54,7 +54,7 @@ pub fn row(
 
     let (chip_fg, chip_bg) = chip_colors(job.status, p, error_color);
     let chip_galley = painter.layout_no_wrap(
-        job.status.label().to_string(),
+        status_label(job).to_string(),
         FontId::proportional(12.0),
         chip_fg,
     );
@@ -291,6 +291,21 @@ fn act(
         "Open folder" => crate::ui::details::open_folder(&job.folder),
         _ => {}
     }
+}
+
+fn status_label(job: &DownloadJob) -> &'static str {
+    if job.status == JobStatus::Queued {
+        if let Some(start) = job.start_at {
+            let now_ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0);
+            if start > now_ms {
+                return "Scheduled";
+            }
+        }
+    }
+    job.status.label()
 }
 
 fn chip_colors(status: JobStatus, p: &Palette, error_color: Color32) -> (Color32, Color32) {
