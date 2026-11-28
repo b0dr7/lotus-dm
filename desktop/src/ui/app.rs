@@ -595,6 +595,30 @@ impl eframe::App for LotusApp {
                     self.selected = Some(id);
                 }
             }
+            Nav::Queue => {
+                ui.add_space(16.0);
+                ui.heading("Queue");
+                ui.add_space(12.0);
+                if queue_view::filters_row(ui, &self.queue, &mut self.filter, &p) {
+                    self.queue.retain(|job| job.status != JobStatus::Done);
+                    if let Err(err) = queue::save(&self.queue) {
+                        eprintln!("lotusdm: queue save failed: {err}");
+                    }
+                }
+                ui.add_space(12.0);
+                let picked = queue_view::list_panel(
+                    ui,
+                    &mut self.queue,
+                    self.filter,
+                    &self.selected,
+                    &mut self.controls,
+                    &self.event_tx,
+                    &p,
+                );
+                if let Some(id) = picked {
+                    self.selected = Some(id);
+                }
+            }
             Nav::Site => {
                 ui.add_space(16.0);
                 ui.heading("Site Explorer");
