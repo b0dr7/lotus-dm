@@ -10,23 +10,12 @@ serde_json = "1"
 dirs = "6"
 ureq = "2"
 rfd = "0.18.0"
-# FTP engine (see src/engine/ftp). Plain ftp:// only for now, so the TLS
-# features stay off until FTPS is wired.
 suppaftp = { version = "12", default-features = false }
-# BitTorrent engine (see src/engine/torrent). librqbit is async, so it needs a
-# tokio runtime and pulls its own TLS stack for .torrent links.
 tokio = { version = "1", features = ["rt-multi-thread", "net", "time", "io-util", "sync"] }
 
-# MSE/PE is not in any librqbit release, so 64-bit builds pin the rqbit MSE pull
-# request (ikatson/rqbit#633) by revision. Its DH-768 code assumes 64-bit words
-# and cannot compile for 32-bit targets, so x86 stays on the released crate and
-# loses only the encryption modes (see `torrent::apply_mse`). Go back to the
-# published crate everywhere once the PR lands upstream.
 [target.'cfg(target_pointer_width = "64")'.dependencies]
 librqbit = { git = "https://github.com/lingdiansr/rqbit", rev = "9b7877cbd884f77c8923e81287b6ed4bf2b2c67f" }
 
-# Cargo refuses the same dependency name from two different sources, so the
-# 32-bit one is renamed; main.rs aliases it back to `librqbit` for the engine.
 [target.'cfg(target_pointer_width = "32")'.dependencies]
 librqbit-release = { package = "librqbit", version = "9.1.0" }
 

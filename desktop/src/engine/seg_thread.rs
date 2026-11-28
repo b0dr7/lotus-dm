@@ -29,8 +29,6 @@ pub(super) struct Shared {
     pub meta: Meta,
 }
 
-/// Bytes on disk for a segment, truncating anything past its range so a
-/// misbehaving server cannot corrupt the merge.
 fn disk_len(path: &Path, cap: u64) -> u64 {
     let len = job::part_len(path);
     if len > cap {
@@ -136,7 +134,6 @@ pub(super) fn segment_loop(
                 if shared.control.cancelled() || shared.abort.load(Ordering::Acquire) {
                     return SegOutcome::Stopped;
                 }
-                // Parts may have been deleted while parked; resync from disk.
                 let on_disk = disk_len(&path, seg_len);
                 if on_disk != offset {
                     offset = on_disk;

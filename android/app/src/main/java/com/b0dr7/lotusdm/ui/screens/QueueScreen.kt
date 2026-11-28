@@ -99,7 +99,6 @@ fun QueueScreen() {
         onDispose { engine.observe(null) }
     }
 
-    // API 23-28 need the write permission before we can use public Downloads.
     val legacyStorage = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
     var writable by remember {
         mutableStateOf(
@@ -119,8 +118,6 @@ fun QueueScreen() {
         }
     }
 
-    // A .torrent picked from the file manager is copied into app storage,
-    // because the document grant does not outlive the process.
     val torrentPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { picked ->
@@ -210,8 +207,6 @@ fun QueueScreen() {
 
         Spacer(Modifier.height(8.dp))
 
-        // A flip phone's cover display is narrow: let the chips scroll
-        // instead of squeezing or clipping them.
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -242,7 +237,7 @@ fun QueueScreen() {
                 },
                 modifier = Modifier.weight(1f),
                 singleLine = true,
-                placeholder = { Text("https://… or magnet:?xt=…", fontSize = 13.sp) },
+                placeholder = { Text("https:
                 shape = RoundedCornerShape(12.dp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
             )
@@ -285,8 +280,6 @@ fun QueueScreen() {
         if (visible.isEmpty()) {
             EmptyQueue()
         } else if (window.isMultiColumn) {
-            // Tablets and unfolded phones: cards flow into as many columns
-            // as the window fits instead of one very wide list.
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = 340.dp),
                 modifier = Modifier.fillMaxSize(),
@@ -326,7 +319,7 @@ fun QueueScreen() {
                     val lines = batchText.split('\n')
                         .map { it.trim() }
                         .filter {
-                            it.startsWith("http://") || it.startsWith("https://") ||
+                            it.startsWith("http:
                                 it.startsWith("magnet:")
                         }
                     lines.forEach { engine.add(it) }

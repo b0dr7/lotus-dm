@@ -3,7 +3,6 @@ package com.b0dr7.lotusdm.data
 import android.content.Context
 import com.b0dr7.lotusdm.ui.theme.ThemeMode
 
-/** FDM-style traffic modes. Custom keeps whatever limit the user typed. */
 enum class TrafficMode(val label: String, val kbps: Int) {
     LOW("Low", 256),
     MEDIUM("Medium", 1024),
@@ -15,10 +14,6 @@ enum class TrafficMode(val label: String, val kbps: Int) {
     val isCustom: Boolean get() = this == CUSTOM
 }
 
-/**
- * Tiny SharedPreferences wrapper. No network, no accounts - the app keeps
- * its preferences on the device.
- */
 class SettingsStore(context: Context) {
 
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -32,7 +27,6 @@ class SettingsStore(context: Context) {
             prefs.edit().putString(KEY_THEME, value.name).apply()
         }
 
-    /** Bandwidth cap in KB/s used by the Custom mode, 0 = unlimited. */
     var speedLimitKb: Int
         get() = prefs.getInt(KEY_SPEED, 0)
         set(value) {
@@ -48,32 +42,27 @@ class SettingsStore(context: Context) {
             prefs.edit().putString(KEY_MODE, value.name).apply()
         }
 
-    /** The limit the engine should use, in KB/s (0 = unlimited). */
     val effectiveLimitKb: Int
         get() = trafficMode.let { if (it.isCustom) speedLimitKb else it.kbps }
 
-    /** Pause everything unless the phone is on Wi-Fi. */
     var wifiOnly: Boolean
         get() = prefs.getBoolean(KEY_WIFI_ONLY, false)
         set(value) {
             prefs.edit().putBoolean(KEY_WIFI_ONLY, value).apply()
         }
 
-    /** One notification per finished/failed download. */
     var notifyResults: Boolean
         get() = prefs.getBoolean(KEY_NOTIFY, true)
         set(value) {
             prefs.edit().putBoolean(KEY_NOTIFY, value).apply()
         }
 
-    /** How many downloads may run at once; the rest wait in priority order. */
     var maxConcurrent: Int
         get() = prefs.getInt(KEY_CONCURRENT, 3).coerceIn(1, 8)
         set(value) {
             prefs.edit().putInt(KEY_CONCURRENT, value.coerceIn(1, 8)).apply()
         }
 
-    /** Pick the saved queue back up after the phone reboots. */
     var launchAtStartup: Boolean
         get() = prefs.getBoolean(KEY_BOOT, false)
         set(value) {

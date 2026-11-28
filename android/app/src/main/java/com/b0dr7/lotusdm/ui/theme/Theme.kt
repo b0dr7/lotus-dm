@@ -9,10 +9,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-/**
- * The theme modes from the token table, System first: it follows the
- * device setting and is what a fresh install starts on.
- */
 enum class ThemeMode(val label: String) {
     SYSTEM("System"),
     DARK("Dark"),
@@ -21,10 +17,6 @@ enum class ThemeMode(val label: String) {
     HIGH_CONTRAST("High contrast"),
 }
 
-/**
- * Extra values Material's ColorScheme cannot express (pure-black surfaces,
- * hard borders, a stronger muted text colour).
- */
 data class LotusColors(
     val background: Color,
     val surface: Color,

@@ -48,13 +48,13 @@ pub fn audio_qualities() -> Vec<Quality> {
 
 pub fn is_media(url: &str) -> bool {
     let lower = url.trim_start().to_ascii_lowercase();
-    lower.starts_with("https://www.youtube.com/")
-        || lower.starts_with("https://youtube.com/")
-        || lower.starts_with("https://m.youtube.com/")
-        || lower.starts_with("https://music.youtube.com/")
-        || lower.starts_with("https://youtube-nocookie.com/")
-        || lower.starts_with("https://youtu.be/")
-        || lower.starts_with("https://vimeo.com/")
+    lower.starts_with("https:
+        || lower.starts_with("https:
+        || lower.starts_with("https:
+        || lower.starts_with("https:
+        || lower.starts_with("https:
+        || lower.starts_with("https:
+        || lower.starts_with("https:
 }
 
 fn media_kind_of(pick: &str) -> MediaKind {

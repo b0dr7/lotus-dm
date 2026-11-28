@@ -1,8 +1,5 @@
 name: release-android
 
-# Tag push (v*) builds the Android APKs (universal + per-ABI) and attaches
-# them to the GitHub Release for that tag. No tag is pushed by CI itself.
-# Debug-signed APKs are fine for personal use and require no signing secrets.
 on:
   push:
     tags:

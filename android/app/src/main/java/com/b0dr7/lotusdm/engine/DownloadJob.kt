@@ -13,7 +13,6 @@ enum class JobKind {
     TORRENT,
 }
 
-/** Queue order: higher rank starts first. */
 enum class JobPriority(val label: String, val rank: Int) {
     HIGH("High", 2),
     NORMAL("Normal", 1),
@@ -27,10 +26,6 @@ enum class JobPriority(val label: String, val rank: Int) {
     }
 }
 
-/**
- * What the app is allowed to see of a download. Plain data - the engine
- * owns the mutable copy.
- */
 data class DownloadJob(
     val id: String,
     val url: String,
@@ -46,11 +41,8 @@ data class DownloadJob(
     val tag: String = "",
     val priority: JobPriority = JobPriority.NORMAL,
     val kind: JobKind = JobKind.HTTP,
-    /** True while the Wi-Fi-only gate is holding this job. */
     val awaitingWifi: Boolean = false,
-    /** Media pick for video/audio jobs: a height like "1080p" or a format like "mp3". */
     val quality: String? = null,
-    /** Optional auto-start time (ms since epoch); 0 = start immediately. */
     val startAt: Long = 0L,
 ) {
     val progress: Float
@@ -58,12 +50,10 @@ data class DownloadJob(
 
     val isTorrent: Boolean get() = kind == JobKind.TORRENT
 
-    /** True for media jobs (video/audio picks) the queue plays back. */
     val isMedia: Boolean
         get() = isMediaUrl(url) && kind == JobKind.HTTP && quality != null
 }
 
-/** The tags the app offers; an empty tag means "untagged". */
 val JOB_TAGS = listOf("Video", "Music", "Docs", "Apps", "Archives", "Other")
 
 fun nextTag(current: String): String {

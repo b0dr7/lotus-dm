@@ -24,8 +24,6 @@ pub struct ClipboardWatch {
 }
 
 impl ClipboardWatch {
-    /// Poll the clipboard every 2s while enabled and the window has focus.
-    /// A newly copied URL becomes the pending prompt.
     pub fn poll(&mut self, ctx: &egui::Context, enabled: bool) {
         if !enabled {
             self.last_poll = None;
@@ -55,7 +53,6 @@ impl ClipboardWatch {
         }
     }
 
-    /// Draw the inline "Add download?" card and report the user's choice.
     pub fn show(&self, ctx: &egui::Context, p: &Palette) -> Option<PromptAction> {
         let url = self.pending.as_ref()?;
         let mut action = None;
@@ -145,11 +142,10 @@ impl ClipboardWatch {
     }
 }
 
-/// First http(s) URL in the text, taken from the first non-empty line.
 fn first_url(text: &str) -> Option<String> {
     for line in text.lines() {
         let line = line.trim();
-        if line.starts_with("http://") || line.starts_with("https://") {
+        if line.starts_with("http:
             return Some(line.to_string());
         }
     }

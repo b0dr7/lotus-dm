@@ -8,10 +8,7 @@ pub struct AddDialog {
     pub url: String,
     pub filename: String,
     pub folder: String,
-    /// Media pick for video/audio jobs: a height like `1080p` or a format like `mp3`.
-    /// None keeps the engine default (720p video / mp3 audio).
     pub quality: Option<String>,
-    /// Delay the start by this many minutes (None/empty = start immediately).
     pub start_in: String,
     pub delay: bool,
 }
@@ -41,7 +38,7 @@ pub fn add_dialog_window(
             ui.add_sized(
                 [ui.available_width(), 26.0],
                 egui::TextEdit::singleline(&mut dialog.url)
-                    .hint_text("https://example.com/file.zip"),
+                    .hint_text("https:
             );
             ui.add_space(8.0);
             ui.label("Filename (optional)");

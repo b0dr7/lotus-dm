@@ -19,10 +19,6 @@ data class PublishedFile(
     val displayName: String,
 )
 
-/**
- * Where finished downloads go. Public Downloads/LotusDM on every version we
- * support, with a private fallback if the device refuses.
- */
 object CompletedFileStore {
 
     private const val RELATIVE_PATH = "Download/LotusDM"
@@ -70,7 +66,6 @@ object CompletedFileStore {
         return false
     }
 
-    // MediaStore (API 29+): RELATIVE_PATH keeps files in Downloads/LotusDM.
 
     private fun publishToMediaStore(
         context: Context,
@@ -126,7 +121,6 @@ object CompletedFileStore {
         return names
     }
 
-    // Legacy (API 23-28): write straight into the public Downloads folder.
 
     private fun publishToLegacyDownloads(
         context: Context,
@@ -160,7 +154,6 @@ object CompletedFileStore {
         )
     }
 
-    // Fallback: app-specific storage, still openable through the provider.
 
     private fun publishToPrivateStorage(
         context: Context,

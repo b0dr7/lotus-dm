@@ -41,11 +41,8 @@ pub struct DownloadJob {
     pub no_resume: bool,
     #[serde(default)]
     pub speed_limit_kbps: u64,
-    /// Media pick for video/audio jobs: a video height such as `1080p` or an
-    /// audio format such as `mp3`. None for plain / torrent / ftp jobs.
     #[serde(default)]
     pub quality: Option<String>,
-    /// Optional auto-start time (ms since epoch). None = start immediately.
     #[serde(default)]
     pub start_at: Option<u64>,
     #[serde(skip)]
@@ -105,7 +102,6 @@ pub fn save(jobs: &[DownloadJob]) -> Result<(), String> {
 }
 
 pub fn derive_filename(url: &str) -> String {
-    // A magnet link has no path to name the row with.
     if url.trim_start().to_ascii_lowercase().starts_with("magnet:") {
         return "torrent".to_string();
     }
@@ -119,7 +115,7 @@ pub fn derive_filename(url: &str) -> String {
 }
 
 pub fn host_of(url: &str) -> String {
-    let after_scheme = url.split_once("://").map(|(_, rest)| rest).unwrap_or(url);
+    let after_scheme = url.split_once(":
     let authority = after_scheme.split(['/', '?', '#']).next().unwrap_or("");
     let host_port = authority.rsplit('@').next().unwrap_or(authority);
     let host = if host_port.starts_with('[') {

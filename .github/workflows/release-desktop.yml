@@ -1,8 +1,5 @@
 name: release-desktop
 
-# Tag push (v*) builds the Windows binaries, wraps them in Inno Setup
-# installers (x64, x86, universal) and attaches the installers to the
-# GitHub Release for that tag. No tag is pushed by CI itself.
 on:
   push:
     tags:
@@ -61,10 +58,6 @@ jobs:
           }
           Get-ChildItem dist | Select-Object Name, Length
 
-      # `winres` only warns when it cannot compile the resources, so an
-      # icon-less exe could ship silently. Explorer, the Start menu shortcut
-      # and Apps & Features all read the icon and version block out of these
-      # two exes, so both are checked before anything is attached.
       - name: Verify icons
         shell: pwsh
         run: |

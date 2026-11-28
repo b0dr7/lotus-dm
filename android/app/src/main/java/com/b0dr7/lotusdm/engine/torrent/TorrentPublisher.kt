@@ -8,12 +8,6 @@ import android.provider.MediaStore
 import com.b0dr7.lotusdm.engine.CompletedFileStore
 import java.io.File
 
-/**
- * Moves a finished torrent's files out of app storage into
- * Downloads/LotusDM/<torrent name>/. API 29+ has to go through MediaStore
- * because scoped storage forbids writing there directly; older versions just
- * move the directory. Returns true when the whole tree made it out.
- */
 object TorrentPublisher {
 
     private const val FOLDER = "LotusDM"
@@ -34,7 +28,6 @@ object TorrentPublisher {
         return moved
     }
 
-    // API 29+: every file becomes a MediaStore row under the torrent's folder.
 
     private fun copyThroughMediaStore(
         context: Context,
@@ -80,9 +73,6 @@ object TorrentPublisher {
         return complete
     }
 
-    // API 23-28: real files, so the directory can simply be moved aside. If the
-    // public Downloads folder refuses the write, keep the tree where the app
-    // is allowed to write instead of dropping it.
 
     private fun moveLegacy(context: Context, source: File, safe: String): Boolean {
         val downloads = Environment.getExternalStoragePublicDirectory(

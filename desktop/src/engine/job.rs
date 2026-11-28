@@ -15,7 +15,6 @@ pub struct Meta {
     pub segments: Option<Vec<SegmentRange>>,
 }
 
-/// Inclusive byte range of one parallel segment.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SegmentRange {
     pub start: u64,
@@ -68,7 +67,6 @@ pub fn part_len(path: &Path) -> u64 {
     std::fs::metadata(path).map(|m| m.len()).unwrap_or(0)
 }
 
-/// True when the resume validators differ from the stored ones.
 pub fn validators_changed(
     meta: &Meta,
     etag: &Option<String>,
@@ -87,8 +85,6 @@ pub fn validators_changed(
     false
 }
 
-/// Total size from Content-Range (resume) or Content-Length (full body),
-/// falling back to the stored meta value.
 pub fn header_total(resp: &ureq::Response, meta: &Option<Meta>) -> u64 {
     if let Some(range) = resp.header("content-range") {
         if let Some((_, total)) = range.rsplit_once('/') {
@@ -108,8 +104,6 @@ pub fn header_total(resp: &ureq::Response, meta: &Option<Meta>) -> u64 {
     meta.as_ref().map(|m| m.total).unwrap_or(0)
 }
 
-/// Final path in the download folder, avoiding clobbering an existing file
-/// by appending " (n)" before the extension.
 pub fn unique_target(folder: &str, filename: &str) -> PathBuf {
     let base = Path::new(folder).join(filename);
     if !base.exists() {
@@ -133,8 +127,6 @@ pub fn unique_target(folder: &str, filename: &str) -> PathBuf {
     base
 }
 
-/// Sleeps reads so the average rate stays at limit_kbps (0 = unlimited).
-/// Shared instances pace every caller against one cumulative budget.
 pub struct RateLimiter {
     limit_kbps: u64,
     started: Instant,

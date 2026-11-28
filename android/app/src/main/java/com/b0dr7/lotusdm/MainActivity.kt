@@ -42,7 +42,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Pushes the stored settings into the running engine. */
     private fun applySettings(store: SettingsStore, refreshNetwork: Boolean) {
         val engine = DownloadEngine.get(applicationContext)
         engine.speedLimit = store.effectiveLimitKb * 1024L
@@ -51,7 +50,6 @@ class MainActivity : ComponentActivity() {
         if (refreshNetwork) engine.refreshNetwork()
     }
 
-    /** Android 13+ needs an explicit grant before the progress notification shows. */
     private fun askForNotifications() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
         val granted = checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==

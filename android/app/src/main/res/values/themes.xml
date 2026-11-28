@@ -6,8 +6,7 @@
         <item name="android:navigationBarColor">@color/lotus_bg</item>
     </style>
 
-    <!-- The "New download" popup: see-through so the browser stays behind the
-         sheet, with the dimming drawn by Compose itself. -->
+    
     <style name="Theme.LotusDM.Sheet" parent="Theme.LotusDM">
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>

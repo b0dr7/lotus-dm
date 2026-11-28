@@ -32,7 +32,6 @@ pub(super) fn run_fresh(
         received: 0,
         segments: Some(split_ranges(total, SEGMENTS)),
     };
-    // stale single-stream bytes must not survive into the segmented layout
     for index in 0..SEGMENTS {
         let _ = std::fs::remove_file(job::segment_path(&job.folder, &job.id, index));
     }
@@ -117,8 +116,6 @@ fn coordinator(
         let outcomes = outcomes.clone();
         let job = job.clone();
         handles.push(thread::spawn(move || {
-            // A panicking segment must still count itself out or the
-            // coordinator would wait forever.
             let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 seg_thread::segment_loop(index, range, job, shared)
             }))

@@ -16,7 +16,6 @@ static SYSTEM_FONTS: AtomicBool = AtomicBool::new(false);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ThemeMode {
-    /// Follow the Windows light/dark setting. The default for new installs.
     #[default]
     System,
     Dark,
@@ -47,12 +46,10 @@ impl ThemeMode {
     }
 }
 
-/// True when the palette in use is the light one (directly or via System).
 pub fn is_light(mode: ThemeMode) -> bool {
     concrete(mode) == ThemeMode::Light
 }
 
-/// Turns System into the light or dark mode Windows is currently using.
 fn concrete(mode: ThemeMode) -> ThemeMode {
     match mode {
         ThemeMode::System => {
@@ -66,8 +63,6 @@ fn concrete(mode: ThemeMode) -> ThemeMode {
     }
 }
 
-/// Cached for a few seconds so a per-frame palette() call never spawns a
-/// process more than once in a while.
 fn system_prefers_light() -> bool {
     static CACHE: LazyLock<Mutex<(Option<Instant>, bool)>> =
         LazyLock::new(|| Mutex::new((None, false)));
@@ -88,8 +83,6 @@ fn system_prefers_light() -> bool {
 fn detect_system_light() -> bool {
     use std::os::windows::process::CommandExt;
     use std::process::Command;
-    // CREATE_NO_WINDOW: console-subsystem children spawned from a GUI
-    // process would otherwise get their own console window each run.
     let output = Command::new("reg")
         .args([
             "query",
@@ -171,7 +164,6 @@ pub fn palette(mode: ThemeMode) -> Palette {
             rgb(0xFF, 0xE1, 0x4D),
             Color32::WHITE,
         ),
-        // concrete() already replaced System with Light or Dark.
         ThemeMode::System => unreachable!(),
     };
 
@@ -194,9 +186,6 @@ fn rgb(r: u8, g: u8, b: u8) -> Color32 {
     Color32::from_rgb(r, g, b)
 }
 
-/// Loads the Windows system font (Segoe UI + Segoe UI Semibold) so text renders
-/// as system-ui per the plan. Silently keeps egui's defaults when the files
-/// are not present (e.g. running cargo check on a non-windows host).
 pub fn install_system_fonts(ctx: &egui::Context) {
     if SYSTEM_FONTS.load(Ordering::Relaxed) {
         return;
@@ -220,8 +209,6 @@ pub fn install_system_fonts(ctx: &egui::Context) {
     if let Some(family) = fonts.families.get_mut(&FontFamily::Proportional) {
         family.insert(0, "system".into());
     }
-    // apply() asks for this family by name for headings; without the binding
-    // egui panics on the first text layout (windows-only: the fonts load).
     fonts.families.insert(
         FontFamily::Name(SEMIBOLD.into()),
         vec![SEMIBOLD.into(), "system".into()],

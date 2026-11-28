@@ -1,8 +1,3 @@
-//! Queue worker for torrent jobs.
-//!
-//! Same shape as the HTTP worker: it runs on its own thread, reports through
-//! `engine::Event` and obeys `engine::Control`. A torrent job is a normal
-//! `DownloadJob` whose URL the torrent engine accepted.
 
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
@@ -16,8 +11,6 @@ use crate::engine::{emit, emit_state, fail, Control, EngineState, Event};
 
 use super::{intake, session, Policy};
 
-/// How often progress is sampled. Torrent stats are cheap to read, and this is
-/// also the pause/cancel reaction time.
 const TICK: Duration = Duration::from_millis(500);
 const PAUSE_POLL: Duration = Duration::from_millis(100);
 const SEED_POLL: Duration = Duration::from_secs(5);
@@ -46,8 +39,6 @@ pub fn run(job: DownloadJob, control: Arc<Control>, tx: Sender<Event>) {
         }
     };
 
-    // Adding a magnet waits for the metadata, so the real name is known here
-    // and the queue row can stop saying "torrent".
     if let Some(name) = torrent.name().filter(|name| !name.trim().is_empty()) {
         emit(&tx, Event::Name { id: job.id.clone(), name });
     }
@@ -99,8 +90,6 @@ pub fn run(job: DownloadJob, control: Arc<Control>, tx: Sender<Event>) {
         );
 
         if stats.finished {
-            // The queue is done with this job; seeding, if configured, happens
-            // in this thread so the files and the session stay untouched.
             emit_state(&tx, &job.id, EngineState::Done);
             seed(&torrent, &control);
             let _ = session::forget(&torrent);
@@ -111,8 +100,6 @@ pub fn run(job: DownloadJob, control: Arc<Control>, tx: Sender<Event>) {
     }
 }
 
-/// Keep seeding while the policy asks for it. With both limits at 0 this
-/// returns at once, which is the default: no seeding.
 fn seed(torrent: &Arc<ManagedTorrent>, control: &Control) {
     let policy = super::policy();
     let started = Instant::now();
@@ -133,8 +120,6 @@ fn seed(torrent: &Arc<ManagedTorrent>, control: &Control) {
     }
 }
 
-/// True when the seeding limits say stop: the ratio, the time, or (when both
-/// are 0) the completion itself.
 fn seeding_done(ratio: f64, elapsed: Duration, policy: &Policy) -> bool {
     if policy.seed_ratio <= 0.0 && policy.seed_minutes == 0 {
         return true;
@@ -143,14 +128,11 @@ fn seeding_done(ratio: f64, elapsed: Duration, policy: &Policy) -> bool {
         || (policy.seed_minutes > 0 && elapsed.as_secs() >= policy.seed_minutes * 60)
 }
 
-/// Hand the job back to the queue, keeping what was already downloaded so a
-/// retry can resume it.
 fn requeue(tx: &Sender<Event>, job: &DownloadJob, torrent: &Arc<ManagedTorrent>) {
     let _ = session::forget(torrent);
     emit_state(tx, &job.id, EngineState::Queued);
 }
 
-/// Report a fatal error and drop the torrent from the session.
 fn abort(tx: &Sender<Event>, job: &DownloadJob, torrent: &Arc<ManagedTorrent>, err: String) {
     fail(tx, &job.id, err);
     let _ = session::forget(torrent);

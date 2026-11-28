@@ -58,11 +58,6 @@ import com.b0dr7.lotusdm.ui.theme.LocalLotusColors
 import com.b0dr7.lotusdm.ui.theme.LotusTheme
 import java.io.File
 
-/**
- * Receives links from browsers (ACTION_VIEW) and the share sheet
- * (ACTION_SEND) and asks before downloading: a bottom sheet with the link and
- * the file name, in the style of AB Download Manager's "New download".
- */
 private const val MIME_TORRENT = "application/x-bittorrent"
 private val VIDEO_QUALITIES = listOf("2160p", "1440p", "1080p", "720p", "480p", "360p", "240p")
 private val AUDIO_FORMATS = listOf("mp3", "aac", "opus", "flac", "wav")
@@ -120,10 +115,7 @@ private fun NewDownloadSheet(
 
     var link by remember(incoming) { mutableStateOf(incoming.orEmpty()) }
     var name by remember(incoming) { mutableStateOf(fileNameOf(incoming).orEmpty()) }
-    // Until the name is edited by hand it follows the link, like AB DM does.
     var nameTouched by remember(incoming) { mutableStateOf(false) }
-    // Media quality for recognised media shares; the default is the FDM-ish
-    // middle pick until the user chooses.
     var quality by remember(incoming) { mutableStateOf(DEFAULT_VIDEO_QUALITY) }
     var delay by remember(incoming) { mutableStateOf(false) }
     var startIn by remember(incoming) { mutableStateOf("") }
@@ -378,20 +370,16 @@ private fun QualityRow(
 private fun youtubeVideoId(url: String): String? {
     val lower = url.lowercase()
     if (!lower.contains("youtube.com") && !lower.contains("youtu.be")) return null
-    // youtu.be/VIDEO_ID
     Regex("youtu\\.be/([A-Za-z0-9_-]{11})").find(url)?.groupValues?.get(1)?.let { return it }
-    // youtube.com/shorts/VIDEO_ID
     Regex("youtube\\.com/shorts/([A-Za-z0-9_-]{11})").find(url)?.groupValues?.get(1)?.let { return it }
-    // youtube.com/watch?v=VIDEO_ID
     Regex("[?&]v=([A-Za-z0-9_-]{11})").find(url)?.groupValues?.get(1)?.let { return it }
-    // youtube.com/embed/VIDEO_ID
     Regex("youtube\\.com/embed/([A-Za-z0-9_-]{11})").find(url)?.groupValues?.get(1)?.let { return it }
     return null
 }
 
 private fun youtubeThumbnailUrl(url: String): String? {
     val id = youtubeVideoId(url) ?: return null
-    return "https://img.youtube.com/vi/$id/hqdefault.jpg"
+    return "https:
 }
 
 private fun extractLink(intent: Intent?): String? {
@@ -403,7 +391,7 @@ private fun extractLink(intent: Intent?): String? {
             val text = intent.getStringExtra(Intent.EXTRA_TEXT)
                 ?: intent.getStringExtra(Intent.EXTRA_SUBJECT)
                 ?: return null
-            val match = Regex("https?://\\S+|magnet:\\?\\S+").find(text) ?: return null
+            val match = Regex("https?:
             match.value.trimEnd('.', ',', ')', ']', '}', '"', '\'', '>')
         }
         else -> null
@@ -411,9 +399,8 @@ private fun extractLink(intent: Intent?): String? {
 }
 
 private fun isDownloadable(value: String): Boolean =
-    value.startsWith("http://") || value.startsWith("https://") || value.startsWith("magnet:")
+    value.startsWith("http:
 
-/** Copies a shared .torrent document into app storage so it can be queued. */
 private fun copyTorrent(context: Context, uri: Uri): File? = runCatching {
     val target = File(context.cacheDir, "picked-${System.currentTimeMillis()}.torrent")
     context.contentResolver.openInputStream(uri)?.use { input ->

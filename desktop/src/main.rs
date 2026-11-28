@@ -33,8 +33,6 @@ mod single_instance {
             return true;
         }
         if unsafe { GetLastError() } == ERROR_ALREADY_EXISTS {
-            // Another instance is running: bring its window back, including
-            // when it is parked in the tray.
             crate::core::sys::show_main_window();
             return false;
         }
@@ -53,7 +51,6 @@ fn main() -> eframe::Result {
         width: 64,
         height: 64,
     };
-    // "Start hidden in the tray" means no window at launch, only the icon.
     let start_hidden = crate::core::settings::load().start_hidden;
     let mut viewport = egui::ViewportBuilder::default()
         .with_title(crate::core::sys::MAIN_WINDOW_TITLE)
@@ -61,10 +58,6 @@ fn main() -> eframe::Result {
         .with_inner_size([1040.0, 680.0])
         .with_min_inner_size([760.0, 520.0]);
     if start_hidden {
-        // Created out of the way instead of invisible: Windows sends no
-        // redraws to an invisible window, and eframe runs App::update from
-        // redraws. The first frame parks it properly (see
-        // core::sys::hide_main_window).
         viewport = viewport.with_position([-32_000.0, -32_000.0]);
     }
     let options = eframe::NativeOptions {

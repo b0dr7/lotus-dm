@@ -1,10 +1,3 @@
-//! Windows tray icon, context menu and balloon notifications.
-//!
-//! Hand-written Win32 on purpose: no extra crates, and the rest of the app
-//! already talks to the OS this way (see `core::sys`). The window procedure
-//! runs on the main thread because winit pumps the message queue, so the
-//! action queue in `ui::tray` is only ever touched from two threads with a
-//! lock held.
 
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
@@ -69,7 +62,6 @@ struct Point {
     y: i32,
 }
 
-/// NOTIFYICONDATAW as of Vista and later: 976 bytes on x64, 956 on x86.
 #[repr(C)]
 struct NotifyIconData {
     cb_size: u32,
@@ -91,7 +83,6 @@ struct NotifyIconData {
 
 impl NotifyIconData {
     fn zeroed() -> Self {
-        // Plain old data: an all-zero struct is a valid, empty value.
         unsafe { std::mem::zeroed() }
     }
 }
@@ -225,8 +216,6 @@ unsafe fn show_menu(hwnd: isize) {
 
     let mut point = Point { x: 0, y: 0 };
     GetCursorPos(&mut point);
-    // The classic pairing: focus first, then the menu, otherwise it can stay
-    // open when the user clicks elsewhere.
     SetForegroundWindow(hwnd as *mut core::ffi::c_void);
     let command = TrackPopupMenu(
         menu,
@@ -294,7 +283,6 @@ impl TrayWin {
                 menu_name: std::ptr::null(),
                 class_name: class.as_ptr(),
             };
-            // Fails harmlessly when the class already exists.
             RegisterClassW(&wc);
 
             let hwnd = CreateWindowExW(
@@ -363,8 +351,6 @@ impl Drop for TrayWin {
     }
 }
 
-/// Balloon/toast in the notification area. Safe to call before the icon
-/// exists: it simply does nothing then.
 pub fn notify(title: &str, body: &str, is_error: bool) {
     let hwnd = HWND.load(Ordering::Relaxed);
     if hwnd == 0 {

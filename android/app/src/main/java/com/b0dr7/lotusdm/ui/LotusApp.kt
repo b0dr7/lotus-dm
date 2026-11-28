@@ -69,8 +69,6 @@ fun LotusApp(
         }
     }
 
-    // Tablets, unfolded foldables and landscape get a rail; phones and the
-    // cover display of a flip phone keep the bottom bar.
     if (window.usesRail) {
         Row(
             modifier = Modifier

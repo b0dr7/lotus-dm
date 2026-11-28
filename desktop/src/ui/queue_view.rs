@@ -123,7 +123,6 @@ pub fn filters_row(
     clear
 }
 
-/// "4 downloads" on the left, live totals on the right.
 pub fn summary_line(ui: &mut egui::Ui, queue: &[DownloadJob], p: &Palette) {
     ui.horizontal(|ui| {
         let shown = queue.len();
@@ -149,7 +148,6 @@ pub fn summary_line(ui: &mut egui::Ui, queue: &[DownloadJob], p: &Palette) {
     });
 }
 
-/// FDM's bottom strip: what the whole queue is doing right now.
 pub fn status_bar(ctx: &egui::Context, queue: &[DownloadJob], limit_kbps: u64, p: &Palette) {
     egui::TopBottomPanel::bottom("status")
         .frame(
@@ -245,8 +243,6 @@ pub fn empty_state(ui: &mut egui::Ui, p: &Palette) {
     });
 }
 
-/// The list itself. Returns the id of the card that was clicked, so the app can
-/// show its details panel.
 pub fn list_panel(
     ui: &mut egui::Ui,
     queue: &mut Vec<DownloadJob>,

@@ -1,7 +1,5 @@
 name: desktop
 
-# Compile check for the Rust app. The real binaries are built by
-# release-desktop.yml on tag pushes; this one just keeps main honest.
 on:
   push:
     branches: [main]
@@ -14,7 +12,6 @@ on:
       - ".github/workflows/desktop.yml"
   workflow_dispatch:
 
-# Pushing the refreshed Cargo.lock back to main needs a writable token.
 permissions:
   contents: write
 
@@ -37,11 +34,6 @@ jobs:
         with:
           workspaces: desktop
 
-      # Dependencies are added by editing Cargo.toml only (this project is
-      # never built on the author's machine), so the lock file is refreshed
-      # here. `cargo metadata` resolves and writes Cargo.lock without
-      # compiling, and a push made with GITHUB_TOKEN starts no new run, so the
-      # check in this same job is what verifies the refreshed lock.
       - name: Refresh Cargo.lock
         if: github.event_name != 'pull_request'
         shell: bash
@@ -59,15 +51,10 @@ jobs:
       - name: Cargo check
         run: cargo check --locked --all-targets
 
-      # The release also builds for 32-bit Windows, where the dependency set
-      # differs (no MSE fork), so the host-only check is not enough.
       - name: Cargo check (32-bit)
         run: |
           rustup target add i686-pc-windows-msvc
           cargo check --locked --target i686-pc-windows-msvc
 
-      # `cargo check --all-targets` only compiles the #[cfg(test)] modules. This
-      # runs them, so the torrent intake, FTP URL and MSE policy tests are
-      # actual checks rather than dead code that happens to type-check.
       - name: Cargo test
         run: cargo test --locked

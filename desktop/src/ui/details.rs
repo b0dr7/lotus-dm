@@ -1,6 +1,3 @@
-//! Right-hand panel for the selected download: the per-job information that
-//! does not fit in a row, plus the one per-download setting FDM keeps there
-//! (its own speed limit).
 
 use eframe::egui::{self, RichText, Stroke};
 
@@ -18,7 +15,6 @@ pub enum Action {
 
 pub struct Outcome {
     pub action: Option<Action>,
-    /// A per-download setting changed, so the queue needs saving.
     pub changed: bool,
     pub close: bool,
 }

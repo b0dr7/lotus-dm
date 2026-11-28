@@ -12,7 +12,7 @@
   var menu = split.querySelector(".split-menu");
   if (!primary || !menu) return;
 
-  var base = "https://github.com/b0dr7/lotus-dm/releases/latest/download/";
+  var base = "https:
 
   primary.href = base + "LotusDM-android-universal.apk";
   primary.textContent = "Download for Android";

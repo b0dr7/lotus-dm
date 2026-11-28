@@ -158,8 +158,6 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
     });
     if encryption != cfg.torrent_encryption {
         cfg.torrent_encryption = encryption;
-        // Rebuilds an idle torrent session in the background; a running
-        // download keeps its mode until it finishes.
         engine::torrent::set_policy(cfg.torrent_policy());
         persist(cfg);
     }
@@ -339,7 +337,7 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
         ui.label(RichText::new("port - takes effect after restart").color(p.muted));
     });
     let state = match (cfg.bridge_enabled, bridge_port) {
-        (true, Some(port)) => format!("Listening on http://127.0.0.1:{port}/ping"),
+        (true, Some(port)) => format!("Listening on http:
         (true, None) => "Not listening - the port is busy. Change it and restart.".to_string(),
         (false, _) => "Off - the browser extension cannot reach this app.".to_string(),
     };
@@ -352,7 +350,7 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
     ui.label(
         RichText::new(
             "Firefox: install Lotus from addons.mozilla.org. Chromium: download the .zip from \
-             the Lotus site, unzip it, open chrome://extensions, turn on Developer mode, click \
+             the Lotus site, unzip it, open chrome:
              Load unpacked and pick the unzipped folder. Then pin Lotus to the toolbar. The \
              bridge line above should read Listening.",
         )

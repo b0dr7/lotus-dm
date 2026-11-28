@@ -17,8 +17,6 @@ const PAD: f32 = 14.0;
 const BUTTON_H: f32 = 24.0;
 const BUTTON_GAP: f32 = 8.0;
 
-/// One download. Returns true when the card itself was clicked, which is how
-/// the details panel gets its selection.
 pub fn row(
     ui: &mut egui::Ui,
     job: &DownloadJob,
@@ -131,7 +129,6 @@ pub fn row(
     response.clicked()
 }
 
-/// Right-aligned percentage in front of the buttons; returns the width used.
 fn draw_percent(
     ui: &mut egui::Ui,
     job: &DownloadJob,

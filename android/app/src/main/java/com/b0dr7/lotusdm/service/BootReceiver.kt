@@ -6,12 +6,6 @@ import android.content.Intent
 import com.b0dr7.lotusdm.data.SettingsStore
 import com.b0dr7.lotusdm.engine.DownloadEngine
 
-/**
- * "Launch at startup" for the queue: after a reboot the saved rows come back
- * and whatever was still waiting starts again, on the same speed limit and
- * Wi-Fi gate the settings hold. The foreground service is only started when
- * there is actually work, so an idle queue costs nothing.
- */
 class BootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {

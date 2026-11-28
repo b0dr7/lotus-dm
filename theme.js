@@ -1,7 +1,3 @@
-/* Lotus theme menu: one expandable button - Dark / Light segment,
-   Amoled toggle (dark only), High contrast toggle (always). Resolved
-   theme persists under lotus-theme-dm; each page's head snippet
-   applies it before first paint. */
 (function () {
   var KEY = "lotus-theme-dm";
 
@@ -20,7 +16,6 @@
     }
   }
 
-  /* resolved data-theme -> menu state */
   function parse(t) {
     if (t === "auto") return { base: "system", amoled: false, hc: false };
     if (t === "hc") return { base: "dark", amoled: false, hc: true };
@@ -30,12 +25,10 @@
     return { base: "dark", amoled: false, hc: false };
   }
 
-  /* "system" follows the OS, every other base is an explicit pick */
   function baseOf(s) {
     return s.base === "system" ? systemTheme() : s.base;
   }
 
-  /* menu state -> resolved data-theme; HC follows the base mode */
   function resolve(s) {
     var base = baseOf(s);
     if (s.hc) return base === "light" ? "hc-light" : "hc";
@@ -43,7 +36,6 @@
     return "light";
   }
 
-  /* menu state -> what gets stored; "auto" keeps following the OS */
   function intent(s) {
     if (s.base === "system" && !s.hc && !s.amoled) return "auto";
     return resolve(s);
@@ -124,7 +116,7 @@
       b.type = "button";
       b.setAttribute("data-mode", m);
       b.addEventListener("click", function () {
-        state.base = m;               /* HC follows the picked mode */
+        state.base = m;
         if (m === "light") state.amoled = false;
         apply(true);
       });
@@ -175,7 +167,6 @@
     apply(false);
   }
 
-  /* Follow the OS theme only while the user has not chosen one. */
   if (window.matchMedia) {
     var mq = window.matchMedia("(prefers-color-scheme: light)");
     var onChange = function () {

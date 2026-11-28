@@ -1,8 +1,5 @@
 name: release-extension
 
-# Tag push (v*) packages the two extension builds and attaches them to the
-# GitHub Release for that tag. The Firefox archive is the unsigned .xpi used
-# for the AMO upload; the Chromium one is the folder users load unpacked.
 on:
   push:
     tags:

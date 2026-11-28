@@ -25,17 +25,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-/**
- * Keeps the process (and therefore the engine) alive while downloads run and
- * mirrors the queue into an ongoing notification.
- */
 class DownloadForegroundService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var ticker: Job? = null
     private var started = false
 
-    /** Last state seen per job, so only real transitions get a notification. */
     private val seen = HashMap<String, JobState>()
     private var resultSeq = 0
     private val store by lazy { SettingsStore(applicationContext) }
@@ -72,8 +67,6 @@ class DownloadForegroundService : Service() {
 
     private suspend fun tick() {
         while (scope.isActive) {
-            // Wi-Fi-only mode needs a heartbeat: it pauses on mobile data and
-            // picks the queue back up when the phone is on Wi-Fi again.
             engine().onNetworkTick()
 
             val jobs = engineJobs()
@@ -92,7 +85,6 @@ class DownloadForegroundService : Service() {
         }
     }
 
-    /** One notification per finished or finally-failed download. */
     private fun announceResults(jobs: List<DownloadJob>) {
         val fresh = ArrayList<Triple<String, String, Boolean>>()
         for (job in jobs) {

@@ -44,31 +44,21 @@ private val VIDEO_QUALITIES = listOf("2160p", "1440p", "1080p", "720p", "480p", 
 private val AUDIO_FORMATS = listOf("mp3", "aac", "opus", "flac", "wav")
 private const val DEFAULT_VIDEO_QUALITY = "720p"
 
-/** True for media links the media engine owns: the video/audio hosts FDM-style
- * downloaders cover (YouTube family + Vimeo). */
 fun isMediaUrl(url: String): Boolean {
     val lower = url.trim().lowercase()
-    return lower.startsWith("https://www.youtube.com/") ||
-        lower.startsWith("https://youtube.com/") ||
-        lower.startsWith("https://m.youtube.com/") ||
-        lower.startsWith("https://music.youtube.com/") ||
-        lower.startsWith("https://youtube-nocookie.com/") ||
-        lower.startsWith("https://youtu.be/") ||
-        lower.startsWith("https://vimeo.com/")
+    return lower.startsWith("https:
+        lower.startsWith("https:
+        lower.startsWith("https:
+        lower.startsWith("https:
+        lower.startsWith("https:
+        lower.startsWith("https:
+        lower.startsWith("https:
 }
 
-/** True when a quality pick names an audio format rather than a video height. */
 fun isAudioQuality(quality: String?): Boolean = quality != null && quality in AUDIO_FORMATS
 
 private fun partName(index: Int) = "part$index"
 
-/**
- * Segmented HTTP engine: up to EIGHT parallel Range requests per file, merged
- * in order when they finish, falling back to a single stream when the server
- * ignores Range.
- *
- * No UI types live in here: it talks in DownloadJob and plain callbacks.
- */
 class DownloadEngine private constructor(context: Context) {
 
     private val appContext = context.applicationContext
@@ -83,15 +73,12 @@ class DownloadEngine private constructor(context: Context) {
     @Volatile
     private var listener: ((List<DownloadJob>) -> Unit)? = null
 
-    /** Global cap in bytes per second, 0 = unlimited. */
     @Volatile
     var speedLimit: Long = 0L
 
-    /** When set, nothing runs unless the phone is on Wi-Fi. */
     @Volatile
     var wifiOnly: Boolean = false
 
-    /** How many jobs may run at the same time; the rest wait by priority. */
     @Volatile
     var maxConcurrent: Int = MAX_CONCURRENT_DEFAULT
 
@@ -116,13 +103,10 @@ class DownloadEngine private constructor(context: Context) {
         @Volatile var tag: String = "",
         @Volatile var priority: JobPriority = JobPriority.NORMAL,
         @Volatile var kind: JobKind = JobKind.HTTP,
-        /** True while the Wi-Fi-only gate is holding this job back. */
         @Volatile
         var awaitingWifi: Boolean = false,
-        /** Media pick (height like "1080p", format like "mp3"); media jobs only. */
         @Volatile
         var quality: String? = null,
-        /** Optional auto-start time (ms since epoch); 0 = start immediately. */
         @Volatile
         var startAt: Long = 0L,
     ) {
@@ -141,7 +125,6 @@ class DownloadEngine private constructor(context: Context) {
         @Volatile
         var segCount: Int = 0
 
-        /** True once the server proved it honours Range on this file. */
         @Volatile
         var rangeOk: Boolean = false
 
@@ -164,15 +147,12 @@ class DownloadEngine private constructor(context: Context) {
         @Volatile
         var run: kotlinx.coroutines.Job? = null
 
-        /** Backoff deadline of an automatic retry, 0 when there is none. */
         @Volatile
         var retryAt: Long = 0L
 
-        /** Magnet link or the copied .torrent file, for torrent rows. */
         @Volatile
         var torrentUri: String? = null
 
-        /** libtorrent session key once the torrent is live. */
         @Volatile
         var torrentHash: String? = null
 
@@ -202,7 +182,6 @@ class DownloadEngine private constructor(context: Context) {
         callback?.let { publish(it, snapshot()) }
     }
 
-    /** Priority first, then queue age - the same order the pump starts in. */
     private fun ordered(): List<Entry> = entries.values.sortedWith(
         compareByDescending<Entry> { it.priority.rank }.thenBy { it.created },
     )
@@ -212,10 +191,8 @@ class DownloadEngine private constructor(context: Context) {
     fun hasWork(): Boolean =
         entries.values.any { it.state == JobState.RUNNING || it.state == JobState.QUEUED }
 
-    /** Lazily created; the session only spins up when a torrent is queued. */
     private val torrents by lazy { TorrentClient(appContext) }
 
-    /** Trims a user-supplied name into something safe to write into Downloads. */
     private fun sanitizeName(raw: String?): String? {
         val cleaned = raw
             ?.trim()
@@ -224,16 +201,12 @@ class DownloadEngine private constructor(context: Context) {
         return cleaned?.takeIf { it.isNotEmpty() }
     }
 
-    /**
-     * Queue a link. [name] overrides the name derived from the URL, which is
-     * what the "New download" sheet sends when the user edits it.
-     */
     fun add(url: String, name: String? = null, quality: String? = null, startAt: Long = 0L): DownloadJob? {
         val clean = url.trim()
         if (clean.isEmpty()) return null
         val wanted = sanitizeName(name)
         if (clean.startsWith("magnet:")) return enqueueTorrent(clean, wanted ?: magnetName(clean))
-        if (!clean.startsWith("http://") && !clean.startsWith("https://")) return null
+        if (!clean.startsWith("http:
 
         val created = System.currentTimeMillis()
         val id = "$created-${(1000..9999).random()}"
@@ -261,7 +234,6 @@ class DownloadEngine private constructor(context: Context) {
         return entry.toPublic()
     }
 
-    /** Queues a .torrent file the user picked; the file is copied into the job. */
     fun addTorrentFile(file: File): DownloadJob? {
         if (!file.exists() || file.length() == 0L) return null
         return enqueueTorrent(file.absolutePath, file.name.removeSuffix(".torrent"))
@@ -312,7 +284,6 @@ class DownloadEngine private constructor(context: Context) {
         return display.orEmpty().ifBlank { "Magnet download" }
     }
 
-    /** Explicit user start (or a retry). Respects the Wi-Fi gate. */
     fun start(id: String) {
         val entry = entries[id] ?: return
         if (entry.state == JobState.RUNNING) return
@@ -348,10 +319,6 @@ class DownloadEngine private constructor(context: Context) {
         }
     }
 
-    /**
-     * Starts as many queued jobs as the concurrency setting allows, highest
-     * priority first. Called after every state change that frees a slot.
-     */
     fun pump() {
         if (!networkAllowed()) return
         var slots = maxConcurrent.coerceAtLeast(1) -
@@ -399,7 +366,6 @@ class DownloadEngine private constructor(context: Context) {
 
     fun resume(id: String) = start(id)
 
-    /** Plays a completed media file through the framework player. */
     fun play(id: String) {
         val entry = entries[id] ?: return
         val uriString = entry.uri ?: return
@@ -408,7 +374,6 @@ class DownloadEngine private constructor(context: Context) {
         player.start()
     }
 
-    /** Manual retry: clears the automatic counter and starts over. */
     fun retry(id: String) {
         val entry = entries[id] ?: return
         entry.attempts = 0
@@ -426,7 +391,6 @@ class DownloadEngine private constructor(context: Context) {
         pump()
     }
 
-    /** Drops finished rows but keeps the files they produced. */
     fun clearCompleted() {
         val finished = entries.values.filter { it.state == JobState.COMPLETED }
         finished.forEach { entry ->
@@ -438,14 +402,11 @@ class DownloadEngine private constructor(context: Context) {
         pump()
     }
 
-    /** Removes a finished row and the file it created. */
     fun delete(id: String): Boolean {
         val entry = entries[id] ?: return false
         entry.run?.cancel()
         entry.run = null
         entry.torrentHash?.let { torrents.remove(it) }
-        // A finished torrent already lives in Downloads/LotusDM, so only the
-        // row goes away here.
         val removed = if (entry.kind == JobKind.TORRENT) {
             true
         } else {
@@ -467,7 +428,6 @@ class DownloadEngine private constructor(context: Context) {
         publishStatus()
     }
 
-    // ------------------------------------------------------------- networks
 
     private fun isOnWifi(): Boolean {
         val manager = appContext.getSystemService(Context.CONNECTIVITY_SERVICE)
@@ -480,17 +440,11 @@ class DownloadEngine private constructor(context: Context) {
 
     private fun networkAllowed(): Boolean = !wifiOnly || isOnWifi()
 
-    /** Re-applies the Wi-Fi gate right after the setting changed. */
     fun refreshNetwork() {
         lastAllowed = !networkAllowed()
         onNetworkTick()
     }
 
-    /**
-     * Called once a second by the foreground service. Holds the queue back on
-     * mobile data and lets it go again when Wi-Fi comes back, without a
-     * network callback the app would have to unregister.
-     */
     fun onNetworkTick() {
         val allowed = networkAllowed()
         if (allowed == lastAllowed) {
@@ -509,9 +463,6 @@ class DownloadEngine private constructor(context: Context) {
             entry.state = JobState.PAUSED
             entry.speed = 0L
             entry.error = "Paused: waiting for Wi-Fi"
-            // libtorrent transfers on its own, so the gate has to pause the
-            // handle: cancelling the poller only stops our view of it, and
-            // the torrent would keep using mobile data.
             entry.torrentHash?.let { torrents.pause(it) }
             entry.run?.cancel()
             entry.run = null
@@ -535,7 +486,6 @@ class DownloadEngine private constructor(context: Context) {
         pump()
     }
 
-    // ---------------------------------------------------------------- work
 
     private suspend fun download(entry: Entry) {
         try {
@@ -552,7 +502,6 @@ class DownloadEngine private constructor(context: Context) {
                 try {
                     runSegmented(entry, probe.total)
                 } catch (abort: RangeLostException) {
-                    // Server stopped honouring Range mid-flight: start clean.
                     entry.segCount = 0
                     entry.segDone.set(0, 0L)
                     entry.downloaded = 0L
@@ -568,12 +517,10 @@ class DownloadEngine private constructor(context: Context) {
             handleFailure(entry, t)
         } finally {
             entry.run = null
-            // A finished/paused job frees a slot for the next queued one.
             pump()
         }
     }
 
-    /** Torrent side of the queue: add to libtorrent, then follow its status. */
     private suspend fun torrentDownload(entry: Entry) {
         try {
             val source = entry.torrentUri ?: throw IOException("Missing torrent source")
@@ -581,16 +528,6 @@ class DownloadEngine private constructor(context: Context) {
             val limitKb = ((if (entry.limit > 0L) entry.limit else speedLimit) / 1024L).toInt()
             client.setDownloadLimit(limitKb)
 
-            // A paused row still owns a live, paused handle, so resuming that
-            // handle is what makes pause-then-resume work again; re-adding
-            // would only find the same paused handle.
-            //
-            // The hand-off runs NonCancellable: a pause that lands while a
-            // magnet is still fetching metadata would otherwise cancel the
-            // coroutine before the handle could be paused, leaving a torrent
-            // downloading with nobody polling it. The state is checked again
-            // inside the same block, so a row that gave up in the meantime
-            // pauses the handle straight back and starts nothing.
             val hash = withContext(NonCancellable + Dispatchers.IO) {
                 val known = entry.torrentHash
                 val hash = if (known != null && client.resume(known)) {
@@ -681,7 +618,6 @@ class DownloadEngine private constructor(context: Context) {
         pump()
     }
 
-    /** Ranged GET for one byte tells us both the size and whether Range works. */
     private fun probe(url: String): Probe {
         val request = Request.Builder().url(url).header("Range", "bytes=0-0").build()
         val response = runCatching { client.newCall(request).execute() }.getOrNull()
@@ -891,7 +827,6 @@ class DownloadEngine private constructor(context: Context) {
         publishStatus()
     }
 
-    /** Media side of the queue: hands off to yt-dlp with the chosen quality. */
     private suspend fun mediaDownload(entry: Entry) {
         try {
             val quality = entry.quality ?: throw IOException("Missing media quality")
@@ -1079,8 +1014,6 @@ class DownloadEngine private constructor(context: Context) {
                 entry.kind = JobKind.entries
                     .firstOrNull { it.name == json.optString("kind", "") }
                     ?: JobKind.HTTP
-                // The libtorrent session is gone after a restart, so a
-                // restored torrent is re-added from its source on resume.
                 entry.torrentUri = json.optString("torrentUri", "").ifEmpty { null }
                 entry.quality = json.optString("quality", "").ifEmpty { null }
                 entry.startAt = json.optLong("startAt", 0L)

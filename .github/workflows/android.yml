@@ -1,8 +1,5 @@
 name: android
 
-# Compile check for the Android app on every push that touches it. The
-# release workflow only runs on tags, and this project is built in CI only,
-# so this is where Kotlin/Compose breakage shows up first.
 on:
   push:
     branches:
@@ -38,10 +35,6 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      # assembleDebug, not just compileDebugKotlin: the torrent engine ships
-      # native libraries and a minSdk of its own, so packaging has to run too.
-      # The fresh variant is the one to use when a change has to be proven
-      # from a from-scratch build instead of whatever Gradle had cached.
       - name: Assemble debug APKs (fresh caches)
         if: inputs.fresh
         run: gradle --no-daemon --stacktrace --no-build-cache --refresh-dependencies assembleDebug

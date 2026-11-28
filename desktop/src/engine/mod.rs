@@ -63,16 +63,12 @@ pub enum Event {
     NoResume {
         id: String,
     },
-    /// The torrent's real name, known once its metadata arrived.
     Name {
         id: String,
         name: String,
     },
 }
 
-/// Hands a queued job to the engine that understands its URL: magnet links,
-/// `.torrent` links and `.torrent` files go to the torrent engine, `ftp://`
-/// to the FTP engine, everything else to the HTTP engine.
 pub fn spawn_download(job: DownloadJob, control: Arc<Control>, tx: Sender<Event>) {
     if torrent::is_torrent(&job.url) {
         thread::spawn(move || torrent::worker::run(job, control, tx));
@@ -85,7 +81,6 @@ pub fn spawn_download(job: DownloadJob, control: Arc<Control>, tx: Sender<Event>
     }
 }
 
-/// Process-wide cap shared by every segment of every running download.
 static GLOBAL_LIMITER: LazyLock<Mutex<RateLimiter>> =
     LazyLock::new(|| Mutex::new(RateLimiter::new(0)));
 

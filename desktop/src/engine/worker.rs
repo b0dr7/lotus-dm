@@ -189,8 +189,6 @@ pub(super) fn run(job: DownloadJob, control: Arc<Control>, tx: Sender<Event>, re
                     cancelled_cleanup(&tx, &job.id, &parts);
                     return;
                 }
-                // Parts may have been deleted while paused; re-sync with disk
-                // because the held stream would then be stale.
                 let expected = received;
                 received = job::part_len(&part);
                 if received != expected {

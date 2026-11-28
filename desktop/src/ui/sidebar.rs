@@ -57,7 +57,6 @@ pub fn status_row(ui: &mut egui::Ui, p: &Palette) {
     ui.painter().circle_filled(center, 3.5, p.accent);
 }
 
-/// 5-petal lotus with a chevron-down knocked into its center.
 pub fn draw_logo(ui: &mut egui::Ui, rect: egui::Rect, p: &Palette) {
     let center = Pos2::new(rect.center().x, rect.top() + 8.0 + LOGO_SIDE / 2.0);
     let radius = LOGO_SIDE / 2.0;

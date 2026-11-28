@@ -26,7 +26,6 @@ impl TrafficMode {
             TrafficMode::Unlimited => "Unlimited",
         }
     }
-    /// Suggested KB/s for this mode (0 = unlimited).
     pub fn suggested_kbps(self) -> u64 {
         match self {
             TrafficMode::Custom => 0,
@@ -46,7 +45,6 @@ pub struct Settings {
     pub global_speed_limit_kbps: u64,
     pub traffic_mode: TrafficMode,
     pub max_connections_per_server: u8,
-    /// How many downloads may run at the same time; 0 means no limit.
     pub max_concurrent_downloads: u8,
     pub clipboard_watch: bool,
     pub bridge_enabled: bool,
@@ -60,14 +58,9 @@ pub struct Settings {
     pub close_to_tray: bool,
     pub start_hidden: bool,
     pub notifications: bool,
-    /// MSE policy for torrent downloads (see `engine::torrent`).
     pub torrent_encryption: EncryptionMode,
-    /// Peer discovery: DHT and LAN local service discovery. Session-wide, so
-    /// a change applies the next time the app starts.
     pub torrent_dht: bool,
     pub torrent_lsd: bool,
-    /// Stop seeding at this share ratio and/or after this many minutes.
-    /// 0 for both means "stop as soon as the download is complete".
     pub torrent_seed_ratio: f64,
     pub torrent_seed_minutes: u64,
 }
@@ -103,8 +96,6 @@ impl Default for Settings {
 }
 
 impl Settings {
-    /// The torrent engine's policy, published to `engine::torrent` at startup
-    /// and again whenever one of these settings changes.
     pub fn torrent_policy(&self) -> Policy {
         Policy {
             encryption: self.torrent_encryption,
@@ -125,9 +116,7 @@ fn default_download_folder() -> String {
         .into_owned()
 }
 
-/// Portable mode keeps data next to the binary; otherwise %APPDATA%/LotusDM.
 pub fn settings_dir() -> Option<PathBuf> {
-    // Portable marker: a file named "portable" next to the executable.
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
             if dir.join("portable").is_file() {

@@ -1,12 +1,3 @@
-//! Loopback HTTP bridge the browser extension talks to.
-//!
-//! Binds 127.0.0.1 only, never a public interface. Three routes:
-//!   GET  /ping            -> {"ok":true,...}  used by the "is it running" check
-//!   POST /add             -> {"url": "...", "filename": "..."} JSON body
-//!   GET  /add?url=...     -> same thing from a plain link, for manual tests
-//!
-//! The bridge only hands work to the UI thread through a channel; it never
-//! touches the queue itself.
 
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -33,9 +24,6 @@ struct AddBody {
     filename: Option<String>,
 }
 
-/// Starts the bridge and returns the port that is actually listening.
-/// If the preferred port is taken the next few are tried, so a second
-/// instance or an unrelated program cannot silently break the extension.
 pub fn start(
     preferred_port: u16,
     tx: Sender<AddRequest>,
@@ -64,8 +52,6 @@ pub fn start(
     None
 }
 
-/// Handles one connection. Returns true when a download was queued, which is
-/// the signal the UI thread needs to pick the request up and repaint.
 fn serve(mut stream: TcpStream, tx: &Sender<AddRequest>) -> bool {
     let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
     let _ = stream.set_write_timeout(Some(Duration::from_secs(5)));
@@ -147,9 +133,9 @@ fn queue_one(
 ) -> bool {
     let url = url.trim().to_string();
     let lower = url.to_ascii_lowercase();
-    let ok = (url.starts_with("http://")
-        || url.starts_with("https://")
-        || lower.starts_with("ftp://")
+    let ok = (url.starts_with("http:
+        || url.starts_with("https:
+        || lower.starts_with("ftp:
         || lower.starts_with("magnet:?"))
         && url.len() <= 8192;
     if !ok {

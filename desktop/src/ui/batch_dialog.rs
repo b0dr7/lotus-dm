@@ -8,7 +8,6 @@ pub struct BatchDialog {
     pub text: String,
 }
 
-/// Multiline paste box: one download per non-empty line.
 pub fn batch_dialog_window(
     ctx: &egui::Context,
     queue: &mut Vec<DownloadJob>,
@@ -35,7 +34,7 @@ pub fn batch_dialog_window(
             ui.add_sized(
                 [420.0, 180.0],
                 egui::TextEdit::multiline(&mut dialog.text)
-                    .hint_text("https://example.com/a.zip\nhttps://example.com/b.zip"),
+                    .hint_text("https:
             );
             ui.add_space(12.0);
             ui.horizontal(|ui| {

@@ -1,6 +1,3 @@
-//! Human-readable sizes, speeds and times, shared by every list that shows a
-//! download. Kept in one place so a row, the details panel and the status bar
-//! never disagree about how 1536 looks.
 
 const KB: f64 = 1024.0;
 const MB: f64 = KB * 1024.0;
@@ -29,7 +26,6 @@ pub fn speed(bps: u64) -> String {
     }
 }
 
-/// Whole-percent progress, or `None` while the size is still unknown.
 pub fn percent(received: u64, total: u64) -> Option<u32> {
     if total == 0 {
         return None;
@@ -37,7 +33,6 @@ pub fn percent(received: u64, total: u64) -> Option<u32> {
     Some((received.min(total) as f64 / total as f64 * 100.0).round() as u32)
 }
 
-/// "42%" or "--" when the total size is not known yet.
 pub fn percent_text(received: u64, total: u64) -> String {
     match percent(received, total) {
         Some(value) => format!("{value}%"),
@@ -45,9 +40,6 @@ pub fn percent_text(received: u64, total: u64) -> String {
     }
 }
 
-/// Time left at the current speed, as "1h 04m", "12m 30s" or "8s". "--" while
-/// the size or the speed is unknown, which is the normal state of a magnet
-/// link that has not found peers yet.
 pub fn eta(received: u64, total: u64, speed_bps: u64) -> String {
     if total == 0 || speed_bps == 0 || received >= total {
         return "--".to_string();
@@ -62,9 +54,6 @@ pub fn eta(received: u64, total: u64, speed_bps: u64) -> String {
     }
 }
 
-/// The bit FDM shows under the file name: where it comes from and how far it
-/// has got. Speed only while running, ETA while there is a speed to extrapolate
-/// from.
 pub fn progress_line(received: u64, total: u64, speed_bps: u64, running: bool) -> String {
     let mut parts = Vec::with_capacity(3);
     if total > 0 {
@@ -100,13 +89,11 @@ mod tests {
 
     #[test]
     fn eta_counts_down_only_when_it_can() {
-        // 600 bytes to go at 100 B/s.
         assert_eq!(eta(400, 1000, 100), "6s");
         assert_eq!(eta(0, 3600, 1), "1h 00m");
         assert_eq!(eta(0, 120, 1), "2m 00s");
         assert_eq!(eta(0, 0, 100), "--");
         assert_eq!(eta(0, 1000, 0), "--");
-        // A complete download has nothing left to wait for.
         assert_eq!(eta(1000, 1000, 100), "--");
     }
 

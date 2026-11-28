@@ -1,4 +1,3 @@
-// Lotus Download Manager - Firefox (MV2) background page.
 const api = typeof browser !== "undefined" ? browser : chrome;
 
 const PORT_KEY = "lotusBridgePort";
@@ -15,7 +14,7 @@ async function bridgePort() {
 
 async function sendToLotus(url, filename) {
   const port = await bridgePort();
-  const response = await fetch("http://127.0.0.1:" + port + "/add", {
+  const response = await fetch("http:
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ url: url, filename: filename || null })

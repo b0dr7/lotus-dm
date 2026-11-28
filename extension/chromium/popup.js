@@ -1,4 +1,3 @@
-// Lotus Download Manager - popup. Works the same in Firefox and Chromium.
 const api = typeof browser !== "undefined" ? browser : chrome;
 
 const PORT_KEY = "lotusBridgePort";
@@ -34,7 +33,7 @@ async function readPort() {
 
 async function ping(port) {
   try {
-    const response = await fetch("http://127.0.0.1:" + port + "/ping", { cache: "no-store" });
+    const response = await fetch("http:
     const data = await response.json();
     return data && data.ok === true;
   } catch (err) {

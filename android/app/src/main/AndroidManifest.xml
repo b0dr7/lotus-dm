@@ -65,8 +65,7 @@
             </intent-filter>
         </activity>
 
-        <!-- Only starts the queue back up when "Launch at startup" is on;
-             the receiver itself does nothing unless the user opted in. -->
+        
         <receiver
             android:name=".service.BootReceiver"
             android:enabled="true"
