@@ -14,6 +14,7 @@ use crate::ui::batch_dialog::{self, BatchDialog};
 use crate::ui::clipboard_watch::{ClipboardWatch, PromptAction};
 use crate::ui::details;
 use crate::ui::help_view;
+use crate::ui::i18n::{self, Key};
 use crate::ui::lifecycle;
 use crate::ui::queue_view::{self, Filter};
 use crate::ui::settings_view;
@@ -461,22 +462,22 @@ impl LotusApp {
                 sidebar::wordmark(ui, p);
                 ui.add_space(20.0);
 
-                if sidebar::nav_pill(ui, "Home", self.nav == Nav::Home, p) {
+                if sidebar::nav_pill(ui, i18n::tr(self.settings.language, Key::NavHome), self.nav == Nav::Home, p) {
                     self.nav = Nav::Home;
                 }
-                if sidebar::nav_pill(ui, "Queue", self.nav == Nav::Queue, p) {
+                if sidebar::nav_pill(ui, i18n::tr(self.settings.language, Key::NavQueue), self.nav == Nav::Queue, p) {
                     self.nav = Nav::Queue;
                 }
-                if sidebar::nav_pill(ui, "Site", self.nav == Nav::Site, p) {
+                if sidebar::nav_pill(ui, i18n::tr(self.settings.language, Key::NavSite), self.nav == Nav::Site, p) {
                     self.nav = Nav::Site;
                 }
-                if sidebar::nav_pill(ui, "Spider", self.nav == Nav::Spider, p) {
+                if sidebar::nav_pill(ui, i18n::tr(self.settings.language, Key::NavSpider), self.nav == Nav::Spider, p) {
                     self.nav = Nav::Spider;
                 }
-                if sidebar::nav_pill(ui, "Settings", self.nav == Nav::Settings, p) {
+                if sidebar::nav_pill(ui, i18n::tr(self.settings.language, Key::NavSettings), self.nav == Nav::Settings, p) {
                     self.nav = Nav::Settings;
                 }
-                if sidebar::nav_pill(ui, "Help", self.nav == Nav::Help, p) {
+                if sidebar::nav_pill(ui, i18n::tr(self.settings.language, Key::NavHelp), self.nav == Nav::Help, p) {
                     self.nav = Nav::Help;
                 }
 

@@ -59,6 +59,12 @@ pub enum Key {
     BridgeOff,
     ExtensionSetup,
     ExtensionHint,
+    NavHome,
+    NavQueue,
+    NavSite,
+    NavSpider,
+    NavSettings,
+    NavHelp,
 }
 
 pub fn tr(lang: Lang, key: Key) -> &'static str {
@@ -234,6 +240,12 @@ fn pair(key: Key) -> (&'static str, &'static str) {
             "Firefox: install Lotus from addons.mozilla.org. Chromium: download the .zip from the Lotus site, unzip it, open the extension page, turn on Developer mode, then click Load unpacked and pick the unzipped folder. Then pin Lotus to the toolbar. The bridge line above should read Listening.",
             "Firefox: поставьте Lotus с addons.mozilla.org. Chromium: скачайте .zip с сайта Lotus, распакуйте, откройте страницу расширений, включите режим разработчика, нажмите Загрузить распакованное и выберите папку. Затем закрепите Lotus на панели. Строка моста выше должна показывать Слушает.",
         ),
+        Key::NavHome => ("Home", "Главная"),
+        Key::NavQueue => ("Queue", "Очередь"),
+        Key::NavSite => ("Site", "Сайт"),
+        Key::NavSpider => ("Spider", "Паук"),
+        Key::NavSettings => ("Settings", "Настройки"),
+        Key::NavHelp => ("Help", "Справка"),
     }
 }
 
