@@ -1,12 +1,3 @@
-//! FDM-style media downloads: video and audio with quality choices.
-//!
-//! Anything that is not a torrent, FTP or plain file goes through here when it
-//! is recognised as media (YouTube / Vimeo links). The quality pick (a video
-//! height such as `1080p` or an audio format such as `mp3`) selects the media
-//! stream, so the transfer is owned by the external `yt-dlp` binary instead of
-//! the ranged HTTP worker, and the outcome is reported back over the same
-//! engine event channel.
-
 use std::path::Path;
 use std::process::Command;
 use std::sync::mpsc::Sender;
@@ -55,9 +46,6 @@ pub fn audio_qualities() -> Vec<Quality> {
     ]
 }
 
-/// True for links the media engine owns: the video/audio hosts FDM-style
-/// downloaders cover (YouTube family + Vimeo). Plain `http(s)` links fall
-/// through to the ranged HTTP worker.
 pub fn is_media(url: &str) -> bool {
     let lower = url.trim_start().to_ascii_lowercase();
     lower.starts_with("https://www.youtube.com/")
@@ -69,7 +57,6 @@ pub fn is_media(url: &str) -> bool {
         || lower.starts_with("https://vimeo.com/")
 }
 
-/// The kind of media a quality pick describes.
 fn media_kind_of(pick: &str) -> MediaKind {
     if AUDIO_FORMATS
         .iter()
@@ -81,8 +68,6 @@ fn media_kind_of(pick: &str) -> MediaKind {
     }
 }
 
-/// Resolve a quality pick (`1080p`, `mp3`, ...) into a `Quality`, falling back
-/// to the FDM-ish middle default (720p video / mp3 audio).
 pub fn resolve(kind: MediaKind, pick: &str) -> Quality {
     if kind == MediaKind::Audio {
         let ext = AUDIO_FORMATS
@@ -110,9 +95,6 @@ pub fn resolve(kind: MediaKind, pick: &str) -> Quality {
     }
 }
 
-/// Final file name for a media download: the video stream gets a `-<height>`
-/// qualifier (`Name-1080p.%(ext)s`) so quality never collides with another pick;
-/// the audio stream just takes its format.
 pub fn output_name(url: &str, quality: &Quality) -> String {
     let base = url.split(['?', '#']).next().unwrap_or("");
     let stem = Path::new(base)
@@ -125,8 +107,6 @@ pub fn output_name(url: &str, quality: &Quality) -> String {
     format!("{}-{}.%(ext)s", stem, quality.label)
 }
 
-/// Hand a media job to the external media downloader. Runs to completion
-/// unless cancelled; the job keeps the normal queue state machine.
 pub(super) fn run(job: DownloadJob, control: Arc<Control>, tx: Sender<Event>) {
     if control.cancelled() {
         fail(
@@ -145,8 +125,6 @@ pub(super) fn run(job: DownloadJob, control: Arc<Control>, tx: Sender<Event>) {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
-        // CREATE_NO_WINDOW: console-subsystem children spawned from a GUI
-        // process would otherwise get their own console window each run.
         command.creation_flags(0x0000_0080);
     }
     command.arg("--no-playlist");
