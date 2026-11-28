@@ -126,7 +126,7 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
         RichText::new(
             "MSE. Enabled prefers encrypted peers and still allows plaintext; Forced only \
              connects to peers that complete the handshake. rqbit sets this per session, so \
-             it applies when the torrent engine next starts.",
+             it applies to the next torrent once no download is running.",
         )
         .color(p.muted),
     );
@@ -148,8 +148,8 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
     });
     if encryption != cfg.torrent_encryption {
         cfg.torrent_encryption = encryption;
-        // rqbit only takes the encryption mode when it builds the session, so
-        // this lands with the next torrent engine start.
+        // Rebuilds an idle torrent session in the background; a running
+        // download keeps its mode until it finishes.
         engine::torrent::set_policy(cfg.torrent_policy());
         persist(cfg);
     }
@@ -157,8 +157,9 @@ pub fn settings_panel(ui: &mut egui::Ui, cfg: &mut Settings, bridge_port: Option
 
     ui.label(
         RichText::new(
-            "DHT and local-network discovery are fixed when the torrent engine starts, so \
-             changing them takes effect the next time Lotus starts.",
+            "DHT and local-network discovery are set the same way: an idle engine is \
+             rebuilt at once, and a running download picks them up when nothing is \
+             downloading any more.",
         )
         .color(p.muted),
     );

@@ -98,10 +98,17 @@ pub fn policy() -> Policy {
 }
 
 /// Set the policy. rqbit takes the encryption mode and the DHT/LSD switches
-/// per session, so a change applies when the torrent session next starts: on
-/// the first torrent after launch, or on the next launch if one is running.
+/// per session, so when they change an idle session is rebuilt in the
+/// background and the next torrent uses the new settings. Torrents already
+/// running keep the session they started with, which is the only way to avoid
+/// interrupting them.
 pub fn set_policy(new: Policy) {
     *POLICY.lock().unwrap_or_else(PoisonError::into_inner) = new;
+    // Stopping a librqbit session sleeps for a second, so the rebuild happens
+    // off the UI thread. Seed limits apply live and never reach this path.
+    if session::policy_changed(&new) {
+        std::thread::spawn(session::refresh_policy);
+    }
 }
 
 /// True when the queue URL belongs to the torrent engine.
