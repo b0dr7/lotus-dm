@@ -16,7 +16,7 @@ pub fn crawl(
     max_pages: usize,
 ) -> Result<Vec<SpiderMatch>, String> {
     let start = normalize_start(start);
-    let origin = origin_of(&start).ok_or("start URL needs http:
+    let origin = origin_of(&start).ok_or("start URL needs http:// or https://")?;
     let budget = max_pages.clamp(1, MAX_PAGES);
     let mut seen: HashSet<String> = HashSet::new();
     let mut collected: HashSet<String> = HashSet::new();
@@ -79,15 +79,15 @@ fn fetch(url: &str) -> Result<String, String> {
 
 fn normalize_start(raw: &str) -> String {
     let trimmed = raw.trim();
-    if trimmed.starts_with("http:
+    if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
         trimmed.to_string()
     } else {
-        format!("https:
+        format!("https://{}", trimmed)
     }
 }
 
 fn origin_of(url: &str) -> Option<String> {
-    let scheme_end = url.find(":
+    let scheme_end = url.find("://")?;
     let after = &url[scheme_end + 3..];
     let host_end = after.find('/').unwrap_or(after.len());
     if host_end == 0 {
@@ -110,12 +110,12 @@ fn resolve(base: &str, href: &str) -> Option<String> {
         return None;
     }
     let origin = origin_of(base)?;
-    if lower.starts_with("http:
+    if lower.starts_with("http://") || lower.starts_with("https://") {
         return Some(href.to_string());
     }
-    if let Some(rest) = href.strip_prefix("
-        let scheme = &base[..base.find(":
-        return Some(format!("{scheme}:
+    if let Some(rest) = href.strip_prefix("//") {
+        let scheme = &base[..base.find("://")?];
+        return Some(format!("{}://{}", scheme, rest));
     }
     if href.starts_with('/') {
         return Some(format!("{origin}{href}"));
@@ -127,7 +127,7 @@ fn resolve(base: &str, href: &str) -> Option<String> {
 }
 
 fn clean(url: &str) -> String {
-    let Some(scheme_end) = url.find(":
+    let Some(scheme_end) = url.find("://") else {
         return url.to_string();
     };
     let (scheme, rest) = url.split_at(scheme_end + 3);
@@ -183,46 +183,49 @@ mod tests {
     #[test]
     fn relative_links_resolve_against_the_page() {
         assert_eq!(
-            resolve("https:
-            Some("https:
+            resolve("https://example.com/dir/page.html", "file.zip"),
+            Some("https://example.com/dir/file.zip".to_string())
         );
         assert_eq!(
-            resolve("https:
-            Some("https:
+            resolve("https://example.com/dir/page.html", "/abs/file.zip"),
+            Some("https://example.com/abs/file.zip".to_string())
         );
         assert_eq!(
-            resolve("https:
-            Some("https:
+            resolve("https://example.com/dir/page.html", "//cdn.example.com/x.zip"),
+            Some("https://cdn.example.com/x.zip".to_string())
         );
-        assert_eq!(resolve("https:
+        assert_eq!(
+            resolve("https://example.com/dir/page.html", "sub/"),
+            Some("https://example.com/dir/sub/".to_string())
+        );
     }
 
     #[test]
     fn dot_segments_are_cleaned_up() {
         assert_eq!(
-            clean("https:
-            "https:
+            clean("https://example.com/a/b/../c/file.zip"),
+            "https://example.com/a/c/file.zip"
         );
         assert_eq!(
-            clean("https:
-            "https:
+            clean("https://example.com/a/./b/file.zip"),
+            "https://example.com/a/b/file.zip"
         );
     }
 
     #[test]
     fn pages_are_told_apart_from_files() {
-        assert!(is_page("https:
-        assert!(is_page("https:
-        assert!(is_page("https:
-        assert!(!is_page("https:
-        assert!(!is_page("https:
+        assert!(is_page("https://example.com/index.html"));
+        assert!(is_page("https://example.com/"));
+        assert!(is_page("https://example.com/dir/"));
+        assert!(!is_page("https://example.com/file.zip"));
+        assert!(!is_page("https://example.com/image.png"));
     }
 
     #[test]
     fn an_empty_pattern_keeps_files_only() {
-        assert!(wants("https:
-        assert!(!wants("https:
-        assert!(wants("https:
-        assert!(!wants("https:
+        assert!(wants("https://example.com/file.zip", ""));
+        assert!(!wants("https://example.com/index.html", ""));
+        assert!(wants("https://example.com/file.zip", "zip"));
+        assert!(!wants("https://example.com/file.zip", "png"));
     }
 }
